@@ -1,73 +1,76 @@
-# React + TypeScript + Vite
+# 小云
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> 📋 捕获碎片信息，一键生成 AI 周报
 
-Currently, two official plugins are available:
+小云是一个 Mac 桌面应用，帮你自动收集浏览过程中看到的有价值内容，然后用 AI 自动生成周报回顾。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## ✨ 功能特性
 
-## React Compiler
+### 🔍 自动捕获
+- 监听剪贴板，自动保存复制的内容
+- 支持文本、图片、URL 链接
+- 自动识别来源应用
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 📂 内容管理
+- 按类型过滤（文本/图片/链接）
+- 本地 SQLite 存储，隐私安全
+- 快速检索历史内容
 
-## Expanding the ESLint configuration
+### 📊 AI 周报生成
+- 一键生成本周内容总结
+- 自动归类、提炼要点
+- 支持反馈优化（点赞/踩）
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### ⌨️ 快捷操作
+- 系统托盘常驻
+- 全局快捷键唤起
+- 后台静默运行
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 🎯 使用场景
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- **信息收集党**：每天刷推、看文章，想保存精华但懒得整理
+- **内容创作者**：收集灵感素材，定期回顾生成创作思路
+- **知识管理者**：碎片化学习，定期汇总沉淀
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 🛠 技术栈
+
+| 层级 | 技术 |
+|---|---|
+| 框架 | Tauri 2 |
+| 前端 | React + TypeScript |
+| 样式 | Tailwind CSS |
+| 动效 | Framer Motion |
+| 存储 | SQLite (本地) |
+| 后端 | Rust |
+
+## 📦 安装
+
+```bash
+# 克隆仓库
+git clone https://github.com/kdsz001/xiaoyun.git
+cd xiaoyun
+
+# 安装依赖
+pnpm install
+
+# 开发模式
+pnpm tauri dev
+
+# 构建应用
+pnpm tauri build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 📸 截图
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+> TODO: 添加应用截图
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 🔮 Roadmap
+
+- [ ] 多主题支持
+- [ ] 云端同步
+- [ ] 浏览器插件捕获
+- [ ] 团队协作版本
+
+## 📄 License
+
+MIT
