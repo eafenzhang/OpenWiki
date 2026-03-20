@@ -1,6 +1,7 @@
 mod ai;
 mod capture;
 mod commands;
+mod export;
 mod scheduler;
 mod storage;
 
@@ -78,6 +79,18 @@ pub fn run() {
                 });
             }
 
+            // --- Intercept window close: hide instead of destroy ---
+            if let Some(main_win) = app.get_webview_window("main") {
+                let win_clone = main_win.clone();
+                main_win.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        // Prevent actual close, just hide the window
+                        api.prevent_close();
+                        let _ = win_clone.hide();
+                    }
+                });
+            }
+
             // --- System Tray ---
             setup_tray(app)?;
 
@@ -109,15 +122,22 @@ pub fn run() {
             commands::chat::get_chat_history,
             commands::chat::save_chat_message,
             commands::chat::clear_chat_history,
+            commands::datahub::search_content,
+            commands::datahub::get_dates_with_content,
+            commands::datahub::get_content_for_date,
+            commands::datahub::export_day_markdown,
+            commands::datahub::export_all_markdown,
+            commands::datahub::export_date_range_markdown,
+            commands::datahub::get_export_dir,
+            commands::datahub::set_export_dir,
+            commands::datahub::open_export_dir,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
-            // Handle Dock icon click on macOS: show main window
-            if let tauri::RunEvent::Reopen { has_visible_windows, .. } = event {
-                if !has_visible_windows {
-                    show_main_window(app, None);
-                }
+            // Handle Dock icon click on macOS: always show main window
+            if let tauri::RunEvent::Reopen { .. } = event {
+                show_main_window(app, None);
             }
         });
 }

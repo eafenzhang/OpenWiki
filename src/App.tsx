@@ -2,12 +2,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { ContentList } from "./features/content-list/ContentList";
 import { SettingsView } from "./features/settings/SettingsView";
-import { ReportView } from "./features/weekly-report/ReportView";
+import { DataHubView } from "./features/data-hub/DataHubView";
 import { useSettingsStore } from "./stores/settingsStore";
 import { useContentStore } from "./stores/contentStore";
+import { searchContent } from "./services/dataHubService";
+import type { CapturedContent } from "./types/content";
 // FloatingBubble is now a separate system-level window (see BubbleView.tsx)
 
-type TabId = "content" | "report" | "settings";
+type TabId = "content" | "datahub" | "settings";
 
 interface TabItem {
   id: TabId;
@@ -17,20 +19,46 @@ interface TabItem {
 
 const TABS: TabItem[] = [
   { id: "content", label: "内容", icon: "📋" },
-  { id: "report", label: "周报", icon: "📊" },
+  { id: "datahub", label: "数据", icon: "📂" },
   { id: "settings", label: "设置", icon: "⚙️" },
 ];
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabId>("content");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<CapturedContent[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadFromDB = useSettingsStore((s) => s.loadFromDB);
-  const captureEnabled = useSettingsStore((s) => s.captureEnabled);
   const setHighlightedIds = useContentStore((s) => s.setHighlightedIds);
+
+  // Debounced search
+  const doSearch = useCallback((query: string) => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (!query.trim()) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const results = await searchContent(query.trim());
+        setSearchResults(results);
+      } catch (e) {
+        console.error("Search failed:", e);
+        setSearchResults([]);
+      }
+      setSearching(false);
+    }, 300);
+  }, []);
 
   // Track scroll positions per tab for restore on switch-back
   const scrollPositions = useRef<Record<TabId, number>>({
     content: 0,
-    report: 0,
+    datahub: 0,
     settings: 0,
   });
 
@@ -96,55 +124,141 @@ function App() {
       <div className="orb orb-3" />
       <div className="orb orb-4" />
 
-      {/* Header with tab navigation */}
-      <header className="glass-heavy sticky top-0 z-10 border-b border-white/30 dark:border-white/[0.06]" style={{ borderTop: 'none', borderLeft: 'none', borderRight: 'none' }}>
-        <div className="px-6 pt-4 pb-0">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
-                  小云
-                </h1>
-                <p className="text-xs text-gray-400 dark:text-slate-500">你的智能信息助手</p>
-              </div>
-            </div>
-            {/* Capture status */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full glass text-[11px]">
-              <span className={`w-1.5 h-1.5 rounded-full ${captureEnabled ? "bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.6)] animate-pulse" : "bg-gray-300 dark:bg-slate-600"}`} />
-              <span className="text-gray-500 dark:text-slate-400">
-                {captureEnabled ? "运行中" : "已暂停"}
-              </span>
-            </div>
-          </div>
+      {/* Header: single-row layout, traffic lights + brand + tabs + search in one bar */}
+      <header className="sticky top-0 z-10 bg-white/30 dark:bg-white/[0.03] backdrop-blur-xl border-b border-white/10 dark:border-white/[0.06]" data-tauri-drag-region>
+        <div className="relative flex items-center pl-[78px] pr-4 h-[40px]" data-tauri-drag-region>
+          {/* Brand — left side, after traffic lights */}
+          <span className="text-base font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent flex-shrink-0" data-tauri-drag-region>
+            小云
+          </span>
 
-          {/* Tab navigation bar */}
-          <nav className="flex gap-1">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => switchTab(tab.id)}
-                className={`
-                  relative flex items-center gap-1.5 px-4 py-2 text-sm font-medium
-                  rounded-xl transition-all duration-200
-                  ${
-                    activeTab === tab.id
-                      ? "bg-white/60 dark:bg-white/[0.12] text-indigo-600 dark:text-indigo-400 shadow-[0_2px_8px_rgba(99,102,241,0.1)] backdrop-blur-sm border border-white/60 dark:border-white/[0.1]"
-                      : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 hover:bg-white/30 dark:hover:bg-white/[0.04]"
-                  }
-                `}
-              >
-                <span className="text-base">{tab.icon}</span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
+          {/* Tab navigation — absolute center in the full header width */}
+          <nav className="absolute inset-0 flex items-center justify-center pointer-events-none" data-tauri-drag-region>
+            <div className="inline-flex bg-gray-100/60 dark:bg-white/[0.06] rounded-md p-0.5 pointer-events-auto">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => switchTab(tab.id)}
+                  className={`
+                    flex items-center gap-1 px-3 py-1 text-[13px] font-medium
+                    rounded transition-all duration-200
+                    ${
+                      activeTab === tab.id
+                        ? "bg-white dark:bg-white/[0.15] text-indigo-600 dark:text-indigo-400 shadow-sm"
+                        : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
+                    }
+                  `}
+                >
+                  <span className="text-xs">{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
           </nav>
+
+          {/* Spacer to push search to right */}
+          <div className="flex-1" data-tauri-drag-region />
+
+          {/* Search icon + expandable input */}
+          <div className="flex-shrink-0 relative">
+            {searchOpen ? (
+              <div className="flex items-center gap-1.5">
+                <div className="relative">
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); doSearch(e.target.value); }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        setSearchOpen(false);
+                        setSearchQuery("");
+                        setSearchResults([]);
+                      }
+                    }}
+                    placeholder="搜索内容..."
+                    className="w-48 px-2.5 py-1 text-xs border border-white/60 dark:border-white/[0.1] rounded-lg
+                               bg-white/60 dark:bg-white/[0.06] text-gray-800 dark:text-gray-200
+                               placeholder-gray-400 dark:placeholder-slate-500
+                               focus:border-indigo-400/60 dark:focus:border-indigo-500/40
+                               outline-none transition-all"
+                    autoFocus
+                  />
+                  {/* Search results dropdown */}
+                  {searchQuery.trim() && (
+                    <div className="absolute right-0 top-full mt-1.5 w-80 max-h-72 overflow-y-auto
+                                    bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl
+                                    border border-white/60 dark:border-white/[0.1]
+                                    rounded-xl shadow-lg z-50">
+                      {searching ? (
+                        <div className="px-3 py-4 text-center text-xs text-gray-400 dark:text-slate-500">搜索中...</div>
+                      ) : searchResults.length === 0 ? (
+                        <div className="px-3 py-4 text-center text-xs text-gray-400 dark:text-slate-500">无结果</div>
+                      ) : (
+                        searchResults.map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              switchTab("content", [item.id]);
+                              setSearchOpen(false);
+                              setSearchQuery("");
+                              setSearchResults([]);
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-indigo-500/10 dark:hover:bg-indigo-500/15
+                                       border-b border-gray-100/50 dark:border-white/[0.04] last:border-0 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs flex-shrink-0">
+                                {item.content_type === "image" ? "📷" : item.content_type === "url" ? "🔗" : "📝"}
+                              </span>
+                              <p className="text-xs text-gray-700 dark:text-gray-200 truncate flex-1">
+                                {item.raw_text?.slice(0, 80) || item.source_url || "无内容"}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5 ml-5">
+                              <span className="text-[10px] text-gray-400 dark:text-slate-500">
+                                {item.captured_at?.slice(0, 10)}
+                              </span>
+                              <span className="text-[10px] text-gray-300 dark:text-slate-600">·</span>
+                              <span className="text-[10px] text-gray-400 dark:text-slate-500">
+                                {item.source_app}
+                              </span>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setSearchOpen(false); setSearchQuery(""); setSearchResults([]); }}
+                  className="p-1 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="p-1.5 text-gray-400 dark:text-slate-500 hover:text-indigo-500 dark:hover:text-indigo-400
+                           hover:bg-white/50 dark:hover:bg-white/[0.08] rounded-lg transition-all"
+                title="搜索"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
       {/* Tab content — relative z-index above orbs */}
       <main className="relative z-[1]">
         {activeTab === "content" && <ContentList />}
-        {activeTab === "report" && <ReportView />}
+        {activeTab === "datahub" && <DataHubView />}
         {activeTab === "settings" && <SettingsView />}
       </main>
 

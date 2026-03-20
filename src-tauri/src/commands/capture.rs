@@ -218,6 +218,36 @@ pub fn save_content_auto(db: &Arc<Database>, event: CaptureEvent) -> Result<Capt
         content.byte_size
     );
 
+    // Trigger auto-sync: export today's markdown if enabled
+    {
+        let db_clone = db.clone();
+        let captured_date = content.captured_at[..10].to_string(); // "YYYY-MM-DD"
+        std::thread::spawn(move || {
+            let repo = crate::storage::repository::Repository::new(db_clone);
+            // Check if auto-sync is enabled
+            let enabled = repo.get_setting("datahub_export_enabled")
+                .ok().flatten().unwrap_or_default() == "true";
+            let auto_sync = repo.get_setting("datahub_auto_sync")
+                .ok().flatten().unwrap_or_else(|| "true".to_string()) == "true";
+            if enabled && auto_sync {
+                let export_dir = repo.get_setting("datahub_export_dir")
+                    .ok().flatten()
+                    .unwrap_or_else(|| {
+                        dirs::document_dir()
+                            .unwrap_or_else(|| std::path::PathBuf::from("~/Documents"))
+                            .join("Xiaoyun")
+                            .to_string_lossy()
+                            .to_string()
+                    });
+                let export_path = std::path::Path::new(&export_dir);
+                match crate::export::markdown::export_day(&captured_date, &repo, export_path) {
+                    Ok(p) => log::info!("Auto-synced markdown: {}", p.display()),
+                    Err(e) => log::error!("Auto-sync failed: {}", e),
+                }
+            }
+        });
+    }
+
     Ok(content)
 }
 

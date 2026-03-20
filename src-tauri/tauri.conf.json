@@ -14,13 +14,15 @@
     "windows": [
       {
         "label": "main",
-        "title": "小云",
+        "title": "",
+        "hiddenTitle": true,
         "url": "/",
         "width": 900,
         "height": 700,
         "resizable": true,
         "decorations": true,
-        "transparent": false,
+        "transparent": true,
+        "titleBarStyle": "Overlay",
         "visible": false,
         "center": true
       },

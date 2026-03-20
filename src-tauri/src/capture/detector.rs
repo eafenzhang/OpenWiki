@@ -558,6 +558,14 @@ impl CaptureDetector {
                     };
 
                     if capture_mode == "confirm" {
+                        // If bubble window is already open (user is typing a memo,
+                        // or voice input is pasting text), skip this clipboard event
+                        // to avoid conflicts and crashes.
+                        if app_for_clipboard.get_webview_window("bubble").is_some() {
+                            log::info!("Bubble window is open, skipping clipboard event to avoid conflict");
+                            return;
+                        }
+
                         // Store pending data in AppState so BubbleView can retrieve it
                         store_pending_capture(&app_for_clipboard, &data);
 

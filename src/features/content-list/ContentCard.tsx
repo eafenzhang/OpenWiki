@@ -7,6 +7,7 @@ import type { CapturedContent } from "../../types/content";
 import { deleteContent, retryUrlFetch, ocrImage } from "../../services/storageService";
 import { chatWithContent, getChatHistory, saveChatMessage, clearChatHistory, type ChatMessage } from "../../services/chatService";
 import { useContentStore } from "../../stores/contentStore";
+import { useDataHubStore } from "../../stores/dataHubStore";
 import { ImagePreview } from "./ImagePreview";
 
 interface ContentCardProps {
@@ -33,6 +34,7 @@ function formatRelativeTime(dateStr: string): string {
 export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
   function ContentCard({ content, isHighlighted = false }, ref) {
   const removeContent = useContentStore((s) => s.removeContent);
+  const removeFromDataHub = useDataHubStore((s) => s.removeContent);
   const updateContent = useContentStore((s) => s.updateContent);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [textExpanded, setTextExpanded] = useState(false);
@@ -51,6 +53,7 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
       try {
         await deleteContent(content.id);
         removeContent(content.id);
+        removeFromDataHub(content.id);
       } catch (e) {
         console.error("Failed to delete:", e);
         setDeleteState("idle");
@@ -158,38 +161,48 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
 
             {/* Content body */}
             <div className="min-w-0 flex-1">
-              {/* Image thumbnail */}
+              {/* Image thumbnail + OCR side by side */}
               {imageSrc && (
-                <div
-                  className="mb-2.5 cursor-pointer group/img inline-block"
-                  onClick={() => setPreviewOpen(true)}
-                >
-                  <img
-                    src={imageSrc}
-                    alt="Captured"
-                    className="max-w-full max-h-44 rounded-xl border border-white/50 dark:border-white/10
-                               group-hover/img:border-indigo-300/60 dark:group-hover/img:border-indigo-500/40
-                               group-hover/img:shadow-md transition-all object-cover"
-                    loading="lazy"
-                  />
-                  <span className="text-[11px] text-gray-400 dark:text-slate-500
-                                   group-hover/img:text-indigo-500 dark:group-hover/img:text-indigo-400 transition-colors mt-1 block">
-                    点击查看大图
-                  </span>
-                </div>
-              )}
-
-              {/* OCR result for images */}
-              {content.content_type === "image" && (content.raw_text || ocrText) && (
-                <div className="mb-2 px-2.5 py-2 rounded-lg
-                                bg-amber-500/[0.06] dark:bg-amber-500/[0.08]
-                                border border-amber-200/40 dark:border-amber-500/15">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">识别文字</span>
+                <div className="mb-2.5 flex gap-3 items-start">
+                  {/* Left: image */}
+                  <div
+                    className="cursor-pointer group/img flex-shrink-0"
+                    onClick={() => setPreviewOpen(true)}
+                  >
+                    <img
+                      src={imageSrc}
+                      alt="Captured"
+                      className="w-40 max-h-36 rounded-xl border border-white/50 dark:border-white/10
+                                 group-hover/img:border-indigo-300/60 dark:group-hover/img:border-indigo-500/40
+                                 group-hover/img:shadow-md transition-all object-cover"
+                      loading="lazy"
+                    />
+                    <span className="text-[11px] text-gray-400 dark:text-slate-500
+                                     group-hover/img:text-indigo-500 dark:group-hover/img:text-indigo-400 transition-colors mt-1 block">
+                      点击查看大图
+                    </span>
                   </div>
-                  <p className="text-xs text-gray-700 dark:text-gray-200 leading-relaxed line-clamp-6 whitespace-pre-wrap">
-                    {ocrText || content.raw_text}
-                  </p>
+
+                  {/* Right: OCR result */}
+                  {content.content_type === "image" && (content.raw_text || ocrText) && (
+                    <div
+                      className="flex-1 min-w-0 px-2.5 py-2 rounded-lg cursor-pointer
+                                    bg-amber-500/[0.06] dark:bg-amber-500/[0.08]
+                                    border border-amber-200/40 dark:border-amber-500/15
+                                    hover:bg-amber-500/[0.12] dark:hover:bg-amber-500/[0.15]
+                                    transition-colors duration-150"
+                      onClick={() => setTextExpanded(true)}
+                      title="点击查看完整文字并与 AI 对话"
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">识别文字</span>
+                        <span className="text-[10px] text-amber-500/60 dark:text-amber-400/50">点击展开</span>
+                      </div>
+                      <p className="text-xs text-gray-700 dark:text-gray-200 leading-relaxed line-clamp-8 whitespace-pre-wrap">
+                        {ocrText || content.raw_text}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -445,13 +458,14 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
       {/* Full text overlay — portal to body to escape overflow-hidden */}
       {createPortal(
         <AnimatePresence>
-          {textExpanded && (content.raw_text || fullImageSrc) && (
+          {textExpanded && (content.raw_text || ocrText || fullImageSrc) && (
             <FullTextOverlay
               content={content}
               copied={copied}
               onCopy={handleCopy}
               onClose={() => setTextExpanded(false)}
               imageSrc={fullImageSrc}
+              ocrText={ocrText}
             />
           )}
         </AnimatePresence>,
@@ -460,6 +474,74 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
     </>
   );
 });
+
+/* ================================================================
+   AUTO-FORMAT — turn plain text into styled paragraphs
+   ================================================================ */
+function FormattedText({ text }: { text: string }) {
+  // Split into paragraphs by double newlines or single newlines
+  const paragraphs = text.split(/\n{2,}/);
+
+  return (
+    <div className="space-y-4">
+      {paragraphs.map((para, i) => {
+        const trimmed = para.trim();
+        if (!trimmed) return null;
+
+        // Detect heading-like lines: starts with # or is short + bold-looking
+        if (/^#{1,3}\s+/.test(trimmed)) {
+          const level = (trimmed.match(/^(#+)/))?.[1]?.length || 1;
+          const headingText = trimmed.replace(/^#{1,3}\s+/, "");
+          const cls = level === 1
+            ? "text-lg font-bold text-gray-900 dark:text-gray-100 mt-2"
+            : level === 2
+            ? "text-base font-semibold text-gray-800 dark:text-gray-200 mt-1"
+            : "text-sm font-semibold text-gray-700 dark:text-gray-300";
+          return <h3 key={i} className={cls}>{headingText}</h3>;
+        }
+
+        // Short standalone lines (< 30 chars, no punctuation at end) → treat as sub-heading
+        if (trimmed.length < 40 && !trimmed.endsWith("。") && !trimmed.endsWith("，") && !trimmed.endsWith(".") && !trimmed.endsWith(",") && !trimmed.includes("\n")) {
+          return (
+            <h4 key={i} className="text-[15px] font-semibold text-gray-800 dark:text-gray-200 mt-1">
+              {trimmed}
+            </h4>
+          );
+        }
+
+        // Multi-line paragraph: split by single newlines and render with line breaks
+        const lines = trimmed.split("\n");
+
+        // Check if it looks like a list (lines starting with - or • or number.)
+        const isList = lines.length > 1 && lines.every(l => /^\s*[-•·]\s|^\s*\d+[.)、]\s/.test(l.trim()) || !l.trim());
+        if (isList) {
+          return (
+            <ul key={i} className="space-y-1.5 pl-1">
+              {lines.filter(l => l.trim()).map((line, j) => (
+                <li key={j} className="flex gap-2 text-[14px] text-gray-700 dark:text-gray-200 leading-relaxed">
+                  <span className="text-indigo-400 dark:text-indigo-500 flex-shrink-0 mt-1">•</span>
+                  <span>{line.replace(/^\s*[-•·]\s*|^\s*\d+[.)、]\s*/, "")}</span>
+                </li>
+              ))}
+            </ul>
+          );
+        }
+
+        // Regular paragraph
+        return (
+          <p key={i} className="text-[14px] text-gray-700 dark:text-gray-200 leading-[1.85]">
+            {lines.map((line, j) => (
+              <span key={j}>
+                {j > 0 && <br />}
+                {line}
+              </span>
+            ))}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
 
 /* ================================================================
    FULL TEXT OVERLAY — with optional AI chat split panel
@@ -471,15 +553,19 @@ function FullTextOverlay({
   onCopy,
   onClose,
   imageSrc,
+  ocrText,
 }: {
   content: CapturedContent;
   copied: boolean;
   onCopy: () => void;
   onClose: () => void;
   imageSrc?: string | null;
+  ocrText?: string | null;
 }) {
   const isImage = content.content_type === "image";
   const isUrl = content.content_type === "url";
+  // For images, prefer ocrText over content.raw_text
+  const displayText = isImage ? (ocrText || content.raw_text) : content.raw_text;
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -523,7 +609,7 @@ function FullTextOverlay({
 
   const handleSend = async (text?: string) => {
     const input = (text ?? inputValue).trim();
-    if (!input || isLoading || !content.raw_text) return;
+    if (!input || isLoading || !displayText) return;
 
     const userMsg: ChatMessage = { role: "user", content: input };
     setMessages((prev) => [...prev, userMsg]);
@@ -534,7 +620,7 @@ function FullTextOverlay({
     saveChatMessage(content.id, "user", input).catch(console.error);
 
     try {
-      const reply = await chatWithContent(content.raw_text, messages, input);
+      const reply = await chatWithContent(displayText, messages, input);
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
       // Save AI reply to database
       saveChatMessage(content.id, "assistant", reply).catch(console.error);
@@ -687,22 +773,21 @@ function FullTextOverlay({
                   />
                 </div>
               )}
-              {/* Text content */}
-              {content.raw_text && (
-                <article className="text-[14px] text-gray-700 dark:text-gray-200 leading-[1.85] whitespace-pre-wrap
-                                    selection:bg-indigo-500/20 dark:selection:bg-indigo-500/30">
+              {/* Text content — auto-formatted */}
+              {displayText && (
+                <article className="selection:bg-indigo-500/20 dark:selection:bg-indigo-500/30">
                   {isImage && (
-                    <div className="flex items-center gap-1.5 mb-2">
+                    <div className="flex items-center gap-1.5 mb-3">
                       <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium px-2 py-0.5 rounded-md bg-amber-500/10">识别文字</span>
                     </div>
                   )}
-                  {content.raw_text}
+                  <FormattedText text={displayText} />
                 </article>
               )}
               {/* No text fallback for images */}
-              {isImage && !content.raw_text && (
+              {isImage && !displayText && (
                 <p className="text-sm text-gray-400 dark:text-slate-500 italic text-center">
-                  暂无识别文字，可在卡片上点击「识别文字」按钮
+                  暂无识别文字
                 </p>
               )}
             </div>
