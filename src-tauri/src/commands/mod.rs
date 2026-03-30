@@ -1,3 +1,4 @@
+pub mod attention;
 pub mod capture;
 pub mod chat;
 pub mod datahub;

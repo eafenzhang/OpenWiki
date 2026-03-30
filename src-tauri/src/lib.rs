@@ -138,6 +138,9 @@ pub fn run() {
             commands::datahub::get_export_dir,
             commands::datahub::set_export_dir,
             commands::datahub::open_export_dir,
+            commands::datahub::get_storage_info,
+            commands::attention::get_attention_insights,
+            commands::attention::trigger_attention_analysis,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
