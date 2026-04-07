@@ -30,7 +30,9 @@ pub fn get_attention_insights(state: State<'_, AppState>) -> Result<RadarStatus,
         .or_else(|| repo.get_setting("ai_api_key").ok().flatten())
         .unwrap_or_default();
 
-    if api_key.is_empty() {
+    // OpenAI and Google can use OAuth instead of an API key
+    let oauth_provider = provider_str_check == "openai" || provider_str_check == "google";
+    if api_key.is_empty() && !oauth_provider {
         return Ok(RadarStatus {
             status: "no_api_key".to_string(),
             insight: None,
@@ -172,8 +174,8 @@ pub async fn trigger_attention_analysis(
         .or_else(|| repo.get_setting("ai_api_key").ok().flatten())
         .unwrap_or_default();
 
-    // Allow OpenAI provider to proceed without an API key if OAuth is available
-    if api_key.is_empty() && provider_str != "openai" {
+    // Allow OpenAI/Google providers to proceed without an API key if OAuth is available
+    if api_key.is_empty() && provider_str != "openai" && provider_str != "google" {
         return Err("请先在设置中配置 AI API Key".to_string());
     }
 
@@ -277,6 +279,63 @@ pub async fn trigger_attention_analysis(
             }
         }
 
+        // Try Gemini OAuth if provider is google
+        if provider_str == "google" {
+            if let Some(result) = attention_analyzer::try_gemini_call(
+                db.clone(),
+                &system_prompt,
+                &user_message,
+            )
+            .await
+            {
+                match result {
+                    Ok(raw_response) => {
+                        log::info!("Gemini OAuth 雷达分析成功");
+                        let _ = app.emit("attention-analysis-progress", "generating");
+                        match attention_analyzer::validate_radar_report(&raw_response) {
+                            Ok(report) => {
+                                let json_str =
+                                    serde_json::to_string(&report).unwrap_or_default();
+                                if let Err(e) = repo.update_insight_status(
+                                    insight_id,
+                                    "complete",
+                                    Some(&json_str),
+                                    None,
+                                ) {
+                                    log::error!("保存洞察报告失败: {}", e);
+                                    let _ = repo.update_insight_status(
+                                        insight_id,
+                                        "error",
+                                        None,
+                                        Some(&format!("保存失败: {}", e)),
+                                    );
+                                    let _ = app.emit("attention-analysis-complete", "error");
+                                    return;
+                                }
+                                log::info!(
+                                    "洞察报告生成完成（Gemini OAuth），共分析 {} 条内容",
+                                    item_count
+                                );
+                                let _ = app.emit("attention-analysis-complete", "complete");
+                            }
+                            Err(e) => {
+                                log::error!("洞察报告验证失败: {}", e);
+                                let _ = repo.update_insight_status(
+                                    insight_id, "error", None, Some(&e),
+                                );
+                                let _ = app.emit("attention-analysis-complete", "error");
+                            }
+                        }
+                        return;
+                    }
+                    Err(e) => {
+                        log::warn!("Gemini OAuth 雷达分析失败，回退到 API Key: {}", e);
+                        // Fall through to API key path below
+                    }
+                }
+            }
+        }
+
         // If we reach here and have no API key, report an error
         if api_key.is_empty() {
             log::error!("没有可用的 AI 调用方式（无 API Key，也无 OAuth Token）");
@@ -284,7 +343,7 @@ pub async fn trigger_attention_analysis(
                 insight_id,
                 "error",
                 None,
-                Some("请先配置 API Key 或通过 OpenAI OAuth 登录"),
+                Some("请先配置 API Key 或通过 OAuth 登录"),
             );
             let _ = app.emit("attention-analysis-complete", "error");
             return;

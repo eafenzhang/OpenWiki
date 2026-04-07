@@ -882,6 +882,21 @@ pub async fn try_codex_call(
     )
 }
 
+/// Try calling via Gemini OAuth if available.
+pub async fn try_gemini_call(
+    db: std::sync::Arc<crate::storage::database::Database>,
+    system_prompt: &str,
+    user_message: &str,
+) -> Option<Result<String, String>> {
+    let (access_token, project_id) = crate::ai::gemini_oauth::get_valid_token(db.clone()).await?;
+    let repo = crate::storage::repository::Repository::new(db);
+    let model = repo.get_setting("ai_model").ok().flatten()
+        .unwrap_or_else(|| "gemini-3-flash".to_string());
+    Some(crate::ai::gemini_api::call_gemini_api(
+        &access_token, &project_id, &model, system_prompt, user_message,
+    ).await)
+}
+
 fn process_dashscope_sse_event(
     pending_data_lines: &mut Vec<String>,
     content_acc: &mut String,

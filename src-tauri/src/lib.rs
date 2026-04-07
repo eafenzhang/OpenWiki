@@ -149,6 +149,9 @@ pub fn run() {
             commands::oauth::start_openai_oauth,
             commands::oauth::get_openai_oauth_status,
             commands::oauth::logout_openai_oauth,
+            commands::oauth::start_gemini_oauth,
+            commands::oauth::get_gemini_oauth_status,
+            commands::oauth::logout_gemini_oauth,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

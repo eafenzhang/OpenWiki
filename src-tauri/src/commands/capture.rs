@@ -813,6 +813,30 @@ pub fn spawn_summary_task(
             }
         }
 
+        // Try Gemini OAuth if provider is google
+        if provider_str == "google" {
+            if let Some(result) = crate::ai::attention_analyzer::try_gemini_call(
+                db.clone(), "", &prompt
+            ).await {
+                match result {
+                    Ok(raw) => {
+                        log::info!("Gemini OAuth 摘要生成成功 for {}", content_id);
+                        let (summary, tags, digest) = extract_summary_tags_digest(&raw);
+                        if !summary.is_empty() {
+                            let tags_str = tags.join(",");
+                            let _ = repo.update_summary_and_tags(&content_id, &summary, &tags_str, &digest);
+                            let _ = app.emit("content-summary-ready", &content_id);
+                            log::info!("Summary generated for {}: [{}] {}", content_id, tags_str, summary);
+                        }
+                        return;
+                    }
+                    Err(e) => {
+                        log::warn!("Gemini OAuth 失败，回退到 API Key: {}", e);
+                    }
+                }
+            }
+        }
+
         // API key path — skip if no key configured
         if api_key.is_empty() {
             return;
