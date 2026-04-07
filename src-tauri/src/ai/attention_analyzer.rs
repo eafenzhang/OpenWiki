@@ -534,6 +534,7 @@ pub enum AnalysisProvider {
     OpenAi,
     OpenRouter,
     DashScope,
+    MiniMax,
 }
 
 impl AnalysisProvider {
@@ -542,6 +543,8 @@ impl AnalysisProvider {
             "openai" => AnalysisProvider::OpenAi,
             "openrouter" => AnalysisProvider::OpenRouter,
             "dashscope" => AnalysisProvider::DashScope,
+            "minimax" => AnalysisProvider::MiniMax,
+            "google" => AnalysisProvider::OpenAi, // Google 仅走 OAuth，不走 API Key；此处仅防回退
             _ => AnalysisProvider::Anthropic,
         }
     }
@@ -661,12 +664,13 @@ pub async fn call_analysis_api(
                 .map(|c| c.text.clone())
                 .unwrap_or_default())
         }
-        AnalysisProvider::OpenAi | AnalysisProvider::OpenRouter | AnalysisProvider::DashScope => {
+        AnalysisProvider::OpenAi | AnalysisProvider::OpenRouter | AnalysisProvider::DashScope | AnalysisProvider::MiniMax => {
             let url = match provider {
                 AnalysisProvider::OpenRouter => "https://openrouter.ai/api/v1/chat/completions",
                 AnalysisProvider::DashScope => {
                     "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
                 }
+                AnalysisProvider::MiniMax => "https://api.minimax.io/v1/chat/completions",
                 _ => "https://api.openai.com/v1/chat/completions",
             };
 

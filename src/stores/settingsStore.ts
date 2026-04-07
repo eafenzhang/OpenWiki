@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { getSettings, updateSetting, checkXReaderStatus, type XReaderStatus } from "../services/settingsService";
 
-export type AIProvider = "anthropic" | "openai" | "openrouter" | "dashscope" | "google";
+export type AIProvider = "anthropic" | "openai" | "openrouter" | "dashscope" | "google" | "minimax";
 
 export interface AIModelOption {
   id: string;
@@ -75,8 +75,11 @@ export const MODELS_BY_PROVIDER: Record<AIProvider, AIModelOption[]> = {
   ],
   google: [
     { id: "gemini-3-flash", label: "Gemini 3 Flash" },
-    { id: "gemini-3-pro", label: "Gemini 3 Pro" },
-    { id: "gemini-3.1-pro", label: "Gemini 3.1 Pro" },
+  ],
+  minimax: [
+    { id: "MiniMax-M2.7", label: "MiniMax M2.7" },
+    { id: "MiniMax-M2.5", label: "MiniMax M2.5" },
+    { id: "MiniMax-M2.1", label: "MiniMax M2.1" },
   ],
 };
 
@@ -86,9 +89,10 @@ export const PROVIDER_LABELS: Record<AIProvider, string> = {
   openrouter: "OpenRouter",
   dashscope: "阿里云百炼",
   google: "Google",
+  minimax: "MiniMax",
 };
 
-const VALID_PROVIDERS: AIProvider[] = ["anthropic", "openai", "openrouter", "dashscope", "google"];
+const VALID_PROVIDERS: AIProvider[] = ["anthropic", "openai", "openrouter", "dashscope", "google", "minimax"];
 
 export type CaptureMode = "auto" | "confirm";
 export type BubbleStyle = "circle" | "bar";

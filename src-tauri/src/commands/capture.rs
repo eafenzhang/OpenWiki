@@ -873,7 +873,21 @@ pub fn spawn_summary_task(
 /// Expected format: {"tags":["标签1","标签2"],"summary":"一句话","digest":"段落总结"}
 fn extract_summary_tags_digest(raw: &str) -> (String, Vec<String>, String) {
     let trimmed = raw.trim();
-    if let Ok(v) = serde_json::from_str::<serde_json::Value>(trimmed) {
+    // Strip markdown code block wrappers (```json ... ``` or ``` ... ```)
+    let cleaned = if trimmed.starts_with("```") {
+        let without_prefix = if let Some(rest) = trimmed.strip_prefix("```json") {
+            rest
+        } else {
+            &trimmed[3..]
+        };
+        without_prefix
+            .strip_suffix("```")
+            .unwrap_or(without_prefix)
+            .trim()
+    } else {
+        trimmed
+    };
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(cleaned) {
         let summary = v
             .get("summary")
             .and_then(|v| v.as_str())
