@@ -28,44 +28,44 @@ export const MODELS_BY_PROVIDER: Record<AIProvider, AIModelOption[]> = {
     { id: "gpt-5.1-codex-mini", label: "GPT-5.1 Codex Mini" },
   ],
   openrouter: [
-    // ── 免费模型 ──
-    { id: "google/gemini-2.5-flash:free", label: "Gemini 2.5 Flash", free: true, group: "免费模型" },
-    { id: "google/gemini-2.5-flash-lite:free", label: "Gemini 2.5 Flash Lite", free: true, group: "免费模型" },
-    { id: "google/gemini-3-flash-preview:free", label: "Gemini 3 Flash Preview", free: true, group: "免费模型" },
-    { id: "deepseek/deepseek-chat-v3-0324:free", label: "DeepSeek V3", free: true, group: "免费模型" },
-    { id: "deepseek/deepseek-chat-v3.1:free", label: "DeepSeek V3.1", free: true, group: "免费模型" },
-    { id: "x-ai/grok-4.1-fast:free", label: "Grok 4.1 Fast", free: true, group: "免费模型" },
-    { id: "minimax/minimax-m2.1:free", label: "MiniMax M2.1", free: true, group: "免费模型" },
-    { id: "openrouter/free", label: "自动选择免费模型", free: true, group: "免费模型" },
+    // ── 🆓 免费模型（推荐）──
+    { id: "qwen/qwen3.6-plus:free", label: "Qwen3.6 Plus (100万上下文)", free: true, group: "免费推荐" },
+    { id: "qwen/qwen3-coder:free", label: "Qwen3 Coder 480B", free: true, group: "免费推荐" },
+    { id: "openai/gpt-oss-120b:free", label: "GPT-OSS 120B", free: true, group: "免费推荐" },
+    { id: "nvidia/nemotron-3-super-120b-a12b:free", label: "Nemotron 3 Super 120B", free: true, group: "免费推荐" },
+    { id: "minimax/minimax-m2.5:free", label: "MiniMax M2.5", free: true, group: "免费推荐" },
+    { id: "stepfun/step-3.5-flash:free", label: "Step 3.5 Flash", free: true, group: "免费推荐" },
+    { id: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B", free: true, group: "免费推荐" },
+    { id: "z-ai/glm-4.5-air:free", label: "GLM 4.5 Air (智谱)", free: true, group: "免费推荐" },
+    // ── 🆓 更多免费 ──
+    { id: "qwen/qwen3-next-80b-a3b-instruct:free", label: "Qwen3 Next 80B", free: true, group: "更多免费" },
+    { id: "openai/gpt-oss-20b:free", label: "GPT-OSS 20B", free: true, group: "更多免费" },
+    { id: "nvidia/nemotron-3-nano-30b-a3b:free", label: "Nemotron 3 Nano 30B", free: true, group: "更多免费" },
+    { id: "arcee-ai/trinity-large-preview:free", label: "Trinity Large 400B", free: true, group: "更多免费" },
+    { id: "google/gemma-3-27b-it:free", label: "Gemma 3 27B", free: true, group: "更多免费" },
+    { id: "openrouter/free", label: "自动选择免费模型", free: true, group: "更多免费" },
     // ── Anthropic ──
-    { id: "anthropic/claude-opus-4.5", label: "Claude Opus 4.5", group: "Anthropic" },
-    { id: "anthropic/claude-sonnet-4", label: "Claude Sonnet 4", group: "Anthropic" },
-    { id: "anthropic/claude-3.5-haiku", label: "Claude 3.5 Haiku", group: "Anthropic" },
+    { id: "anthropic/claude-opus-4.6", label: "Claude Opus 4.6", group: "Anthropic" },
+    { id: "anthropic/claude-sonnet-4.6", label: "Claude Sonnet 4.6", group: "Anthropic" },
+    { id: "anthropic/claude-haiku-4.5", label: "Claude Haiku 4.5", group: "Anthropic" },
     // ── OpenAI ──
     { id: "openai/gpt-5.2", label: "GPT-5.2", group: "OpenAI" },
     { id: "openai/gpt-5.1", label: "GPT-5.1", group: "OpenAI" },
-    { id: "openai/gpt-4o", label: "GPT-4o", group: "OpenAI" },
-    { id: "openai/gpt-4o-mini", label: "GPT-4o Mini", group: "OpenAI" },
     // ── Google ──
-    { id: "google/gemini-3-pro-preview", label: "Gemini 3 Pro Preview", group: "Google" },
-    { id: "google/gemini-3-flash-preview", label: "Gemini 3 Flash Preview", group: "Google" },
-    { id: "google/gemini-2.5-pro-preview", label: "Gemini 2.5 Pro", group: "Google" },
-    { id: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash", group: "Google" },
+    { id: "google/gemini-3.1-pro-preview", label: "Gemini 3.1 Pro", group: "Google" },
+    { id: "google/gemini-3-pro-preview", label: "Gemini 3 Pro", group: "Google" },
+    { id: "google/gemini-3-flash-preview", label: "Gemini 3 Flash", group: "Google" },
     // ── DeepSeek ──
     { id: "deepseek/deepseek-v3.2", label: "DeepSeek V3.2", group: "DeepSeek" },
     { id: "deepseek/deepseek-r1", label: "DeepSeek R1", group: "DeepSeek" },
     // ── xAI ──
     { id: "x-ai/grok-4.1-fast", label: "Grok 4.1 Fast", group: "xAI" },
-    // ── Moonshot ──
-    { id: "moonshotai/kimi-k2.5", label: "Kimi K2.5", group: "Moonshot" },
+    // ── 智谱 ──
+    { id: "z-ai/glm-5", label: "GLM 5", group: "智谱" },
+    // ── Qwen ──
+    { id: "qwen/qwen3-coder-next", label: "Qwen3 Coder Next", group: "Qwen" },
     // ── Meta ──
     { id: "meta-llama/llama-4-maverick", label: "Llama 4 Maverick", group: "Meta" },
-    // ── Qwen ──
-    { id: "qwen/qwen3.6-plus:free", label: "Qwen3.6 Plus", free: true, group: "免费模型" },
-    { id: "qwen/qwen3-coder:free", label: "Qwen3 Coder 480B", free: true, group: "免费模型" },
-    { id: "qwen/qwen3-next-80b-a3b-instruct:free", label: "Qwen3 Next 80B", free: true, group: "免费模型" },
-    { id: "qwen/qwen3-coder-next", label: "Qwen3 Coder Next", group: "Qwen" },
-    { id: "qwen/qwen3-235b-a22b", label: "Qwen3 235B", group: "Qwen" },
     // ── Mistral ──
     { id: "mistralai/mistral-large-2512", label: "Mistral Large 3", group: "Mistral" },
   ],
