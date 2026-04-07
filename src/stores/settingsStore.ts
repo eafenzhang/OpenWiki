@@ -75,6 +75,11 @@ export const MODELS_BY_PROVIDER: Record<AIProvider, AIModelOption[]> = {
   ],
   google: [
     { id: "gemini-3-flash", label: "Gemini 3 Flash" },
+    { id: "gemini-3-pro-low", label: "Gemini 3 Pro" },
+    { id: "gemini-3-pro-high", label: "Gemini 3 Pro (深度推理)" },
+    { id: "gemini-3.1-pro-low", label: "Gemini 3.1 Pro" },
+    { id: "gemini-3.1-pro-high", label: "Gemini 3.1 Pro (深度推理)" },
+    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
   ],
   minimax: [
     { id: "MiniMax-M2.7", label: "MiniMax M2.7" },
