@@ -165,6 +165,7 @@ pub fn run() {
             commands::wiki::get_chat_messages,
             commands::wiki::delete_chat_session,
             commands::wiki::save_message_as_page,
+            commands::wiki::get_saved_message_ids,
             commands::wiki::get_wiki_conversations,
             commands::wiki::trigger_wiki_lint,
             commands::wiki::get_wiki_lint_results,

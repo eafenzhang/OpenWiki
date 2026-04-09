@@ -86,6 +86,10 @@ export async function saveMessageAsPage(sessionId: string, messageId: string): P
   return invoke("save_message_as_page", { sessionId, messageId });
 }
 
+export async function getSavedMessageIds(messageIds: string[]): Promise<string[]> {
+  return invoke("get_saved_message_ids", { messageIds });
+}
+
 // Legacy
 export async function getWikiConversations(limit?: number): Promise<WikiConversation[]> {
   return invoke("get_wiki_conversations", { limit: limit ?? 20 });

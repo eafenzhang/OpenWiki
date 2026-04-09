@@ -3,7 +3,7 @@ import { Send, X, Plus, Trash2, BookOpen, Loader, ChevronLeft } from "lucide-rea
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { WikiChatSession, WikiChatMessage } from "../../types/wiki";
-import { wikiAsk, getChatSessions, getChatMessages, deleteChatSession, saveMessageAsPage, getWikiPage } from "../../services/wikiService";
+import { wikiAsk, getChatSessions, getChatMessages, deleteChatSession, saveMessageAsPage, getWikiPage, getSavedMessageIds } from "../../services/wikiService";
 
 interface WikiAskSidebarProps {
   onClose: () => void;
@@ -45,6 +45,15 @@ export function WikiAskSidebar({ onClose, onNavigateToPage }: WikiAskSidebarProp
     try {
       const msgs = await getChatMessages(sessionId);
       setMessages(msgs);
+      // Hydrate savedIds from backend — check which assistant messages are already saved
+      const asstIds = msgs.filter(m => m.role === "assistant").map(m => m.id);
+      if (asstIds.length > 0) {
+        const saved = await getSavedMessageIds(asstIds);
+        if (saved.length > 0) {
+          setSavedIds(new Set(saved));
+          saved.forEach(id => inFlightSaveRef.current.add(id));
+        }
+      }
     } catch (e) {
       console.error("Failed to load messages:", e);
       setMessages([]);

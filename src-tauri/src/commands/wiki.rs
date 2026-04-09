@@ -455,6 +455,22 @@ pub async fn save_message_as_page(
     Ok(page)
 }
 
+/// Check which message IDs have already been saved as wiki pages.
+#[tauri::command]
+pub fn get_saved_message_ids(
+    state: State<'_, AppState>,
+    message_ids: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let repo = Repository::new(state.db.clone());
+    let mut saved = Vec::new();
+    for mid in &message_ids {
+        if let Ok(Some(_)) = repo.get_wiki_page_by_source_message_id(mid) {
+            saved.push(mid.clone());
+        }
+    }
+    Ok(saved)
+}
+
 // Legacy compatibility — keep old commands but delegate
 #[tauri::command]
 pub fn get_wiki_conversations(
