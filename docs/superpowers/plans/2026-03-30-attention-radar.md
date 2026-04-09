@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust (reqwest, serde, tokio), SQLite (rusqlite), React 19, TypeScript, Zustand, Tailwind CSS 4, Lucide Icons, Framer Motion, Tauri 2 event system.
 
-**Design doc:** `~/.gstack/projects/kdsz001-xiaoyun/pipiwang-feat-data-hub-design-20260330-012030.md`
+**Design doc:** (local dev artifact, removed)
 **Eng review:** All 7 issues resolved. Codex outside voice integrated.
 **Design review:** 6/10 → 8/10. Typography + empty states + keyboard nav specified.
 

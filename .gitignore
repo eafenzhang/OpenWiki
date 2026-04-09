@@ -31,3 +31,6 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Claude Code local settings (contains user-specific paths)
+.claude/settings.local.json

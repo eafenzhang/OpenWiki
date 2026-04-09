@@ -52,5 +52,5 @@
 
 ### NOTE: TODO-3 已完成
 - /office-hours 产出了完整的消化功能设计文档 (APPROVED)
-- 设计文档: ~/.gstack/projects/kdsz001-xiaoyun/pipiwang-feat-data-hub-design-20260324-172400.md
+- 设计文档: (local dev artifact, removed)
 - IMPL-1 更新：导航改为 内容 | 消化 | 设置（"回顾"改名"消化"）

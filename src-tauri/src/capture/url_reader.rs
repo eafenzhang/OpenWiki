@@ -469,7 +469,7 @@ impl UrlReader {
 
         // Resolve yt-dlp binary path — macOS GUI apps have a minimal PATH,
         // so we search common install locations explicitly (concrete paths first).
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/Users/pipiwang".to_string());
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
         let candidates = vec![
             format!("{}/anaconda3/bin/yt-dlp", home),
             format!("{}/miniconda3/bin/yt-dlp", home),
