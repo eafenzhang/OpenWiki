@@ -8,7 +8,7 @@ use crate::storage::models::CaptureEvent;
 use crate::storage::repository::Repository;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Listener, Manager};
 
 /// Time window in milliseconds for deduplication.
@@ -81,8 +81,14 @@ fn compute_dedup_keys(event: &serde_json::Value) -> Vec<String> {
 
             // Key based on image dimensions (for cross-source dedup between
             // clipboard images and screenshot files of the same capture)
-            let w = event.get("image_width").and_then(|v| v.as_u64()).unwrap_or(0);
-            let h = event.get("image_height").and_then(|v| v.as_u64()).unwrap_or(0);
+            let w = event
+                .get("image_width")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
+            let h = event
+                .get("image_height")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
             if w > 0 && h > 0 {
                 keys.push(format!("img:dims:{}x{}", w, h));
             }
@@ -106,26 +112,45 @@ fn compute_dedup_keys(event: &serde_json::Value) -> Vec<String> {
     }
 }
 
+fn is_xiaoyun_source_app(source_app: &str) -> bool {
+    source_app.eq_ignore_ascii_case("xiaoyun")
+}
+
+fn should_show_confirmation_bubble(event: &serde_json::Value) -> bool {
+    let content_type = event
+        .get("content_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown");
+
+    if content_type != "text" {
+        return true;
+    }
+
+    let from_clipboard = event
+        .get("from_clipboard")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let source_app = event
+        .get("source_app")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    !from_clipboard || is_xiaoyun_source_app(source_app)
+}
+
 /// Async function to fetch URL content.
 /// Uses smart routing: WeChat → direct HTML, Twitter → fxtwitter API, others → Jina.
 async fn fetch_url_content(content_id: String, url: String, db: Arc<Database>, app: AppHandle) {
-    log::info!(
-        "Starting URL fetch task for {} (url={})",
-        content_id,
-        url
-    );
+    log::info!("Starting URL fetch task for {} (url={})", content_id, url);
 
     let reader = UrlReader::new();
     let result = reader.fetch_content(&url).await;
 
     match result {
         Ok(result) => {
+            let db_for_summary = db.clone();
             let repo = Repository::new(db);
-            if let Err(e) = repo.update_content_for_url(
-                &content_id,
-                &result.content,
-                &url,
-            ) {
+            if let Err(e) = repo.update_content_for_url(&content_id, &result.content, &url) {
                 log::error!("Failed to update URL content: {}", e);
             } else {
                 log::info!(
@@ -133,6 +158,13 @@ async fn fetch_url_content(content_id: String, url: String, db: Arc<Database>, a
                     content_id,
                     result.content.len(),
                     result.title
+                );
+                // Generate AI summary + tags after URL content is ready
+                crate::commands::capture::spawn_summary_task(
+                    db_for_summary,
+                    app.clone(),
+                    content_id.clone(),
+                    result.content.clone(),
                 );
                 let _ = app.emit(
                     "content:url-fetched",
@@ -189,7 +221,9 @@ fn handle_auto_save(app: &AppHandle, data: serde_json::Value) {
             if contains_sensitive_data(text) {
                 log::info!(
                     "Sensitive data detected, skipping capture (source_app={}, preview={}...)",
-                    data.get("source_app").and_then(|v| v.as_str()).unwrap_or("Unknown"),
+                    data.get("source_app")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Unknown"),
                     &text.chars().take(20).collect::<String>()
                 );
                 return;
@@ -232,12 +266,26 @@ fn handle_auto_save(app: &AppHandle, data: serde_json::Value) {
                 content.source_url
             );
 
+            // For pure text content, generate AI summary immediately
+            if content.content_type.as_str() == "text" {
+                if let Some(ref text) = content.raw_text {
+                    crate::commands::capture::spawn_summary_task(
+                        db.clone(),
+                        app.clone(),
+                        content.id.clone(),
+                        text.clone(),
+                    );
+                }
+            }
+
             // For URL content, spawn background fetch via Jina Reader
             // Only fetch if raw_text is empty or equals source_url (not fetched yet)
             if content.content_type.as_str() == "url" {
                 if let Some(url) = content.source_url {
                     // Check if content has been fetched already
-                    let needs_fetch = content.raw_text.as_ref()
+                    let needs_fetch = content
+                        .raw_text
+                        .as_ref()
                         .map(|text| text.is_empty() || text.as_str() == url)
                         .unwrap_or(true);
 
@@ -256,11 +304,7 @@ fn handle_auto_save(app: &AppHandle, data: serde_json::Value) {
                         .unwrap_or(true);
 
                     if url_reading_enabled {
-                        log::info!(
-                            "Spawning URL fetch task for {} (url={})",
-                            content.id,
-                            url
-                        );
+                        log::info!("Spawning URL fetch task for {} (url={})", content.id, url);
                         let content_id = content.id.clone();
                         let app_clone = app.clone();
                         tauri::async_runtime::spawn(fetch_url_content(
@@ -273,10 +317,7 @@ fn handle_auto_save(app: &AppHandle, data: serde_json::Value) {
                         log::info!("URL reading disabled, skipping fetch for {}", content.id);
                     }
                 } else {
-                    log::warn!(
-                        "URL content {} has no source_url, cannot fetch",
-                        content.id
-                    );
+                    log::warn!("URL content {} has no source_url, cannot fetch", content.id);
                 }
             }
 
@@ -291,13 +332,26 @@ fn handle_auto_save(app: &AppHandle, data: serde_json::Value) {
                         match tokio::task::spawn_blocking({
                             let path = image_path.clone();
                             move || super::ocr::recognize_text(&path)
-                        }).await {
+                        })
+                        .await
+                        {
                             Ok(Ok(text)) => {
+                                let db_for_summary = db_clone.clone();
                                 let repo = Repository::new(db_clone);
                                 if let Err(e) = repo.update_raw_text(&content_id, &text) {
                                     log::error!("[OCR] Failed to save: {}", e);
                                 } else {
-                                    log::info!("[OCR] Auto-OCR done for {}: {} chars", content_id, text.len());
+                                    log::info!(
+                                        "[OCR] Auto-OCR done for {}: {} chars",
+                                        content_id,
+                                        text.len()
+                                    );
+                                    crate::commands::capture::spawn_summary_task(
+                                        db_for_summary,
+                                        app_clone.clone(),
+                                        content_id.clone(),
+                                        text.clone(),
+                                    );
                                     let _ = app_clone.emit(
                                         "content:ocr-done",
                                         serde_json::json!({
@@ -320,7 +374,12 @@ fn handle_auto_save(app: &AppHandle, data: serde_json::Value) {
         }
         Err(e) => {
             if e.contains("Duplicate content") {
-                log::debug!("Skipped duplicate content");
+                log::debug!("Duplicate content moved to top");
+                // Notify frontend to refresh (order changed)
+                let _ = app.emit(
+                    "content:url-fetched",
+                    serde_json::json!({"id": "", "reorder": true}),
+                );
             } else {
                 log::error!("Failed to auto-save content: {}", e);
             }
@@ -358,36 +417,122 @@ fn make_window_transparent(win: &tauri::WebviewWindow) {
 
     let ns_view_ptr = appkit.ns_view.as_ptr() as usize;
 
-    // Use dispatch crate to ensure main thread execution
+    // Execute synchronously — caller (show_bubble_window) already runs on main thread
+    // via run_on_main_thread, so no dispatch needed. This ensures transparency is
+    // fully applied BEFORE the window becomes visible.
+    unsafe {
+        use objc2::runtime::{AnyClass, AnyObject, Sel};
+
+        let ns_view: &AnyObject = &*(ns_view_ptr as *const AnyObject);
+
+        let ns_window: *const AnyObject = objc2::msg_send![ns_view, window];
+        if ns_window.is_null() {
+            return;
+        }
+        let ns_window: &AnyObject = &*ns_window;
+
+        let _: () = objc2::msg_send![ns_window, setOpaque: false];
+        let _: () = objc2::msg_send![ns_window, setHasShadow: false];
+
+        let ns_color_cls = AnyClass::get("NSColor").unwrap();
+        let clear_color: *const AnyObject = objc2::msg_send![ns_color_cls, clearColor];
+        let _: () = objc2::msg_send![ns_window, setBackgroundColor: clear_color];
+
+        let _: () = objc2::msg_send![ns_window, setAcceptsMouseMovedEvents: true];
+
+        // Disable background drawing on WKWebView and subviews
+        let content_view: *const AnyObject = objc2::msg_send![ns_window, contentView];
+        if !content_view.is_null() {
+            fn disable_bg(view: &objc2::runtime::AnyObject) {
+                unsafe {
+                    use objc2::runtime::{AnyObject, Sel};
+                    let sel = Sel::register("_setDrawsBackground:");
+                    let responds: bool = objc2::msg_send![view, respondsToSelector: sel];
+                    if responds {
+                        let _: () = objc2::msg_send![view, _setDrawsBackground: false];
+                    }
+                    let sel2 = Sel::register("setDrawsBackground:");
+                    let responds2: bool = objc2::msg_send![view, respondsToSelector: sel2];
+                    if responds2 {
+                        let _: () = objc2::msg_send![view, setDrawsBackground: false];
+                    }
+                    let subviews: *const AnyObject = objc2::msg_send![view, subviews];
+                    if !subviews.is_null() {
+                        let count: usize = objc2::msg_send![subviews, count];
+                        for i in 0..count {
+                            let sub: *const AnyObject =
+                                objc2::msg_send![subviews, objectAtIndex: i];
+                            if !sub.is_null() {
+                                disable_bg(&*sub);
+                            }
+                        }
+                    }
+                }
+            }
+            disable_bg(&*content_view);
+        }
+    }
+
+    log::info!("Window transparency applied synchronously");
+}
+
+/// Show the bubble window without stealing focus from the current app.
+/// Strategy: record frontmost app before showing, then reactivate it after.
+#[cfg(target_os = "macos")]
+fn show_bubble_without_focus(win: &tauri::WebviewWindow) {
+    use raw_window_handle::HasWindowHandle;
+
+    let handle = match win.window_handle() {
+        Ok(h) => h,
+        Err(_) => return,
+    };
+
+    let appkit = match handle.as_raw() {
+        raw_window_handle::RawWindowHandle::AppKit(h) => h,
+        _ => return,
+    };
+
+    let ns_view_ptr = appkit.ns_view.as_ptr() as usize;
+
     dispatch::Queue::main().exec_async(move || {
         unsafe {
             use objc2::runtime::{AnyClass, AnyObject};
 
+            // 1. Remember the currently active app BEFORE we show our window
+            let workspace_cls = AnyClass::get("NSWorkspace").unwrap();
+            let workspace: *const AnyObject = objc2::msg_send![workspace_cls, sharedWorkspace];
+            let front_app: *const AnyObject = objc2::msg_send![&*workspace, frontmostApplication];
+
+            // 2. Show bubble window as a non-activating panel
             let ns_view: &AnyObject = &*(ns_view_ptr as *const AnyObject);
-
             let ns_window: *const AnyObject = objc2::msg_send![ns_view, window];
-            if ns_window.is_null() {
-                return;
+            if !ns_window.is_null() {
+                let ns_window: &AnyObject = &*ns_window;
+                // Set window level to floating panel (above normal windows)
+                let floating_level: i64 = 3; // NSFloatingWindowLevel
+                let _: () = objc2::msg_send![ns_window, setLevel: floating_level];
+                // Mark as non-activating panel — prevents focus steal entirely
+                // NSWindowStyleMaskNonactivatingPanel = 1 << 7 = 128
+                let style_mask: u64 = objc2::msg_send![ns_window, styleMask];
+                let _: () = objc2::msg_send![ns_window, setStyleMask: style_mask | 128u64];
+                let _: () = objc2::msg_send![ns_window, orderFrontRegardless];
             }
-            let ns_window: &AnyObject = &*ns_window;
 
-            let _: () = objc2::msg_send![ns_window, setOpaque: false];
-            let _: () = objc2::msg_send![ns_window, setHasShadow: false];
-
-            let ns_color_cls = AnyClass::get("NSColor").unwrap();
-            let clear_color: *const AnyObject = objc2::msg_send![ns_color_cls, clearColor];
-            let _: () = objc2::msg_send![ns_window, setBackgroundColor: clear_color];
+            // 3. Do not reactivate the previous app here.
+            // `orderFrontRegardless` is enough to show the bubble, and explicitly
+            // activating another app can wake or raise client windows unexpectedly.
+            let _ = front_app;
         }
     });
 
-    log::info!("Window transparency dispatched to main thread");
+    log::info!("Bubble window shown without stealing focus");
 }
 
 /// Dynamically create and show the bubble window at the bottom-right of the screen.
 /// If a bubble window already exists, close it first to avoid duplicates.
 fn show_bubble_window(app: &AppHandle) {
-    use tauri::WebviewWindowBuilder;
     use tauri::WebviewUrl;
+    use tauri::WebviewWindowBuilder;
 
     // Close existing bubble if any, with retry to ensure it's fully closed
     if let Some(existing) = app.get_webview_window("bubble") {
@@ -410,11 +555,13 @@ fn show_bubble_window(app: &AppHandle) {
     let (bubble_style, bubble_position) = {
         let state = app.state::<AppState>();
         let repo = Repository::new(state.db.clone());
-        let style = repo.get_setting("bubble_style")
+        let style = repo
+            .get_setting("bubble_style")
             .ok()
             .flatten()
             .unwrap_or_else(|| "circle".to_string());
-        let position = repo.get_setting("bubble_position")
+        let position = repo
+            .get_setting("bubble_position")
             .ok()
             .flatten()
             .unwrap_or_else(|| "bottom-right".to_string());
@@ -422,17 +569,23 @@ fn show_bubble_window(app: &AppHandle) {
     };
 
     let is_circle = bubble_style == "circle";
-    // Circle mode: start at capsule size so CSS can animate circle→capsule
+    // Circle mode: 64px height (48px circle + 16px padding for bounce animation)
     let win_w: f64 = if is_circle { 320.0 } else { 340.0 };
-    let win_h: f64 = if is_circle { 48.0 } else { 72.0 };
+    let win_h: f64 = if is_circle { 64.0 } else { 72.0 };
 
     // Determine position based on bubble_position setting
     let (x, y) = if let Some(main_win) = app.get_webview_window("main") {
-        let monitor = main_win.primary_monitor()
+        let monitor = main_win
+            .primary_monitor()
             .ok()
             .flatten()
             .or_else(|| main_win.current_monitor().ok().flatten())
-            .or_else(|| main_win.available_monitors().ok().and_then(|m| m.into_iter().next()));
+            .or_else(|| {
+                main_win
+                    .available_monitors()
+                    .ok()
+                    .and_then(|m| m.into_iter().next())
+            });
 
         if let Some(monitor) = monitor {
             let screen = monitor.size();
@@ -451,7 +604,7 @@ fn show_bubble_window(app: &AppHandle) {
                     } else {
                         (screen_w - win_w) / 2.0
                     }
-                },
+                }
                 _ => screen_w - win_w - margin, // bottom-right, top-right, default
             };
 
@@ -462,7 +615,12 @@ fn show_bubble_window(app: &AppHandle) {
 
             log::info!(
                 "Bubble position: ({}, {}), style={}, pos={}, size={}x{}",
-                x, y, bubble_style, bubble_position, win_w, win_h
+                x,
+                y,
+                bubble_style,
+                bubble_position,
+                win_w,
+                win_h
             );
             (x, y)
         } else {
@@ -473,40 +631,48 @@ fn show_bubble_window(app: &AppHandle) {
     };
 
     // Create the bubble window dynamically
-    match WebviewWindowBuilder::new(
-        app,
-        "bubble",
-        WebviewUrl::App("/bubble".into()),
-    )
-    .title("")
-    .inner_size(win_w, win_h)
-    .position(x, y)
-    .resizable(false)
-    .decorations(false)
-    .transparent(true)
-    .always_on_top(true)
-    .skip_taskbar(true)
-    .visible(true)
-    .focused(true)
-    .build()
+    match WebviewWindowBuilder::new(app, "bubble", WebviewUrl::App("/bubble".into()))
+        .title("")
+        .inner_size(win_w, win_h)
+        .position(x, y)
+        .resizable(false)
+        .decorations(false)
+        .transparent(true)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .visible(false)
+        .focused(false)
+        .accept_first_mouse(true)
+        .build()
     {
         Ok(win) => {
+            let app_handle = app.clone();
+            win.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { .. } = event {
+                    let suppress_arc = app_handle.state::<AppState>().suppress_reopen_until.clone();
+                    if let Ok(mut guard) = suppress_arc.lock() {
+                        *guard = Some(Instant::now() + Duration::from_secs(2));
+                    };
+                }
+            });
+
             #[cfg(target_os = "macos")]
             {
                 if is_circle {
-                    // Circle mode: make window fully transparent (no vibrancy).
-                    // CSS handles the glass effect + circle→capsule animation.
+                    // Circle mode: apply transparency BEFORE showing window
                     make_window_transparent(&win);
                 } else {
                     // Bar mode: use native vibrancy for glass background
                     use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
-                    let _ = apply_vibrancy(
-                        &win,
-                        NSVisualEffectMaterial::HudWindow,
-                        None,
-                        Some(16.0),
-                    );
+                    let _ =
+                        apply_vibrancy(&win, NSVisualEffectMaterial::HudWindow, None, Some(16.0));
                 }
+                // Show the window without stealing focus from the current app
+                show_bubble_without_focus(&win);
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                let _ = win.show();
             }
             log::info!("Bubble window created (style={})", bubble_style);
         }
@@ -515,7 +681,6 @@ fn show_bubble_window(app: &AppHandle) {
         }
     }
 }
-
 
 pub struct CaptureDetector {
     clipboard_watcher: ClipboardWatcher,
@@ -561,7 +726,17 @@ impl CaptureDetector {
                         // Store pending data in AppState so BubbleView can retrieve it
                         store_pending_capture(&app_for_clipboard, &data);
 
-                        // Also emit event for the BubbleView listener
+                        // If bubble already open, just emit event — let frontend decide
+                        // whether to accept (circle mode) or ignore (expanded mode)
+                        if app_for_clipboard.get_webview_window("bubble").is_some() {
+                            log::info!("Bubble window already open, emitting capture:pending for frontend to handle");
+                            if let Err(e) = app_for_clipboard.emit("capture:pending", &data) {
+                                log::error!("Failed to emit capture:pending: {}", e);
+                            }
+                            return;
+                        }
+
+                        // Emit event for the BubbleView listener
                         log::info!("Capture pending confirmation (mode=confirm)");
                         if let Err(e) = app_for_clipboard.emit("capture:pending", &data) {
                             log::error!("Failed to emit capture:pending: {}", e);
@@ -592,7 +767,9 @@ impl CaptureDetector {
             if let Ok(data) = serde_json::from_str::<serde_json::Value>(event.payload()) {
                 let keys = compute_dedup_keys(&data);
                 let should_save = {
-                    let mut state = dedup_for_screenshot.lock().unwrap_or_else(|e| e.into_inner());
+                    let mut state = dedup_for_screenshot
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
                     state.should_emit(&keys)
                 };
 
@@ -615,5 +792,40 @@ impl CaptureDetector {
         self.clipboard_watcher.stop();
         self.screenshot_watcher.stop();
         log::info!("Capture detector stopped");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_show_confirmation_bubble;
+
+    #[test]
+    fn bubble_shows_for_non_text_content() {
+        let event = serde_json::json!({
+            "content_type": "image",
+            "source_app": "WeChat",
+            "from_clipboard": true
+        });
+        assert!(should_show_confirmation_bubble(&event));
+    }
+
+    #[test]
+    fn bubble_is_suppressed_for_external_clipboard_text() {
+        let event = serde_json::json!({
+            "content_type": "text",
+            "source_app": "WeChat",
+            "from_clipboard": true
+        });
+        assert!(!should_show_confirmation_bubble(&event));
+    }
+
+    #[test]
+    fn bubble_is_allowed_for_xiaoyun_clipboard_text() {
+        let event = serde_json::json!({
+            "content_type": "text",
+            "source_app": "xiaoyun",
+            "from_clipboard": true
+        });
+        assert!(should_show_confirmation_bubble(&event));
     }
 }

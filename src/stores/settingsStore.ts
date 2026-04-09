@@ -1,7 +1,8 @@
 import { create } from "zustand";
+import { invoke } from "@tauri-apps/api/core";
 import { getSettings, updateSetting, checkXReaderStatus, type XReaderStatus } from "../services/settingsService";
 
-export type AIProvider = "anthropic" | "openai" | "openrouter";
+export type AIProvider = "anthropic" | "openai" | "openrouter" | "dashscope" | "google" | "minimax";
 
 export interface AIModelOption {
   id: string;
@@ -17,48 +18,79 @@ export const MODELS_BY_PROVIDER: Record<AIProvider, AIModelOption[]> = {
     { id: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku" },
   ],
   openai: [
-    { id: "gpt-4o", label: "GPT-4o" },
-    { id: "gpt-4o-mini", label: "GPT-4o Mini" },
-    { id: "gpt-4-turbo", label: "GPT-4 Turbo" },
+    { id: "auto", label: "Auto (智能选择)" },
+    { id: "gpt-5.4", label: "GPT-5.4" },
+    { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
+    { id: "gpt-5.3-codex", label: "GPT-5.3 Codex" },
+    { id: "gpt-5.2", label: "GPT-5.2" },
+    { id: "gpt-5.2-codex", label: "GPT-5.2 Codex" },
+    { id: "gpt-5.1-codex-max", label: "GPT-5.1 Codex Max" },
+    { id: "gpt-5.1-codex", label: "GPT-5.1 Codex" },
+    { id: "gpt-5.1-codex-mini", label: "GPT-5.1 Codex Mini" },
   ],
   openrouter: [
-    // ── 免费模型 ──
-    { id: "google/gemini-2.5-flash:free", label: "Gemini 2.5 Flash", free: true, group: "免费模型" },
-    { id: "google/gemini-2.5-flash-lite:free", label: "Gemini 2.5 Flash Lite", free: true, group: "免费模型" },
-    { id: "google/gemini-3-flash-preview:free", label: "Gemini 3 Flash Preview", free: true, group: "免费模型" },
-    { id: "deepseek/deepseek-chat-v3-0324:free", label: "DeepSeek V3", free: true, group: "免费模型" },
-    { id: "deepseek/deepseek-chat-v3.1:free", label: "DeepSeek V3.1", free: true, group: "免费模型" },
-    { id: "x-ai/grok-4.1-fast:free", label: "Grok 4.1 Fast", free: true, group: "免费模型" },
-    { id: "minimax/minimax-m2.1:free", label: "MiniMax M2.1", free: true, group: "免费模型" },
-    { id: "openrouter/free", label: "自动选择免费模型", free: true, group: "免费模型" },
+    // ── 🆓 免费模型（推荐）──
+    { id: "qwen/qwen3.6-plus:free", label: "Qwen3.6 Plus (100万上下文)", free: true, group: "免费推荐" },
+    { id: "qwen/qwen3-coder:free", label: "Qwen3 Coder 480B", free: true, group: "免费推荐" },
+    { id: "openai/gpt-oss-120b:free", label: "GPT-OSS 120B", free: true, group: "免费推荐" },
+    { id: "nvidia/nemotron-3-super-120b-a12b:free", label: "Nemotron 3 Super 120B", free: true, group: "免费推荐" },
+    { id: "minimax/minimax-m2.5:free", label: "MiniMax M2.5", free: true, group: "免费推荐" },
+    { id: "stepfun/step-3.5-flash:free", label: "Step 3.5 Flash", free: true, group: "免费推荐" },
+    { id: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B", free: true, group: "免费推荐" },
+    { id: "z-ai/glm-4.5-air:free", label: "GLM 4.5 Air (智谱)", free: true, group: "免费推荐" },
+    // ── 🆓 更多免费 ──
+    { id: "qwen/qwen3-next-80b-a3b-instruct:free", label: "Qwen3 Next 80B", free: true, group: "更多免费" },
+    { id: "openai/gpt-oss-20b:free", label: "GPT-OSS 20B", free: true, group: "更多免费" },
+    { id: "nvidia/nemotron-3-nano-30b-a3b:free", label: "Nemotron 3 Nano 30B", free: true, group: "更多免费" },
+    { id: "arcee-ai/trinity-large-preview:free", label: "Trinity Large 400B", free: true, group: "更多免费" },
+    { id: "google/gemma-3-27b-it:free", label: "Gemma 3 27B", free: true, group: "更多免费" },
+    { id: "openrouter/free", label: "自动选择免费模型", free: true, group: "更多免费" },
     // ── Anthropic ──
-    { id: "anthropic/claude-opus-4.5", label: "Claude Opus 4.5", group: "Anthropic" },
-    { id: "anthropic/claude-sonnet-4", label: "Claude Sonnet 4", group: "Anthropic" },
-    { id: "anthropic/claude-3.5-haiku", label: "Claude 3.5 Haiku", group: "Anthropic" },
+    { id: "anthropic/claude-opus-4.6", label: "Claude Opus 4.6", group: "Anthropic" },
+    { id: "anthropic/claude-sonnet-4.6", label: "Claude Sonnet 4.6", group: "Anthropic" },
+    { id: "anthropic/claude-haiku-4.5", label: "Claude Haiku 4.5", group: "Anthropic" },
     // ── OpenAI ──
     { id: "openai/gpt-5.2", label: "GPT-5.2", group: "OpenAI" },
     { id: "openai/gpt-5.1", label: "GPT-5.1", group: "OpenAI" },
-    { id: "openai/gpt-4o", label: "GPT-4o", group: "OpenAI" },
-    { id: "openai/gpt-4o-mini", label: "GPT-4o Mini", group: "OpenAI" },
     // ── Google ──
-    { id: "google/gemini-3-pro-preview", label: "Gemini 3 Pro Preview", group: "Google" },
-    { id: "google/gemini-3-flash-preview", label: "Gemini 3 Flash Preview", group: "Google" },
-    { id: "google/gemini-2.5-pro-preview", label: "Gemini 2.5 Pro", group: "Google" },
-    { id: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash", group: "Google" },
+    { id: "google/gemini-3.1-pro-preview", label: "Gemini 3.1 Pro", group: "Google" },
+    { id: "google/gemini-3-pro-preview", label: "Gemini 3 Pro", group: "Google" },
+    { id: "google/gemini-3-flash-preview", label: "Gemini 3 Flash", group: "Google" },
     // ── DeepSeek ──
     { id: "deepseek/deepseek-v3.2", label: "DeepSeek V3.2", group: "DeepSeek" },
     { id: "deepseek/deepseek-r1", label: "DeepSeek R1", group: "DeepSeek" },
     // ── xAI ──
     { id: "x-ai/grok-4.1-fast", label: "Grok 4.1 Fast", group: "xAI" },
-    // ── Moonshot ──
-    { id: "moonshotai/kimi-k2.5", label: "Kimi K2.5", group: "Moonshot" },
-    // ── Meta ──
-    { id: "meta-llama/llama-4-maverick", label: "Llama 4 Maverick", group: "Meta" },
+    // ── 智谱 ──
+    { id: "z-ai/glm-5", label: "GLM 5", group: "智谱" },
     // ── Qwen ──
     { id: "qwen/qwen3-coder-next", label: "Qwen3 Coder Next", group: "Qwen" },
-    { id: "qwen/qwen3-235b-a22b", label: "Qwen3 235B", group: "Qwen" },
+    // ── Meta ──
+    { id: "meta-llama/llama-4-maverick", label: "Llama 4 Maverick", group: "Meta" },
     // ── Mistral ──
     { id: "mistralai/mistral-large-2512", label: "Mistral Large 3", group: "Mistral" },
+  ],
+  dashscope: [
+    { id: "qwen3.6-plus", label: "Qwen3.6 Plus" },
+    { id: "qwen-plus", label: "Qwen Plus" },
+    { id: "qwen-turbo", label: "Qwen Turbo" },
+    { id: "qwen-max", label: "Qwen Max" },
+    { id: "qwen-long", label: "Qwen Long" },
+  ],
+  google: [
+    { id: "auto", label: "Auto (智能选择)" },
+    { id: "gemini-3-flash", label: "Gemini 3 Flash" },
+    { id: "gemini-3-pro-low", label: "Gemini 3 Pro" },
+    { id: "gemini-3-pro-high", label: "Gemini 3 Pro (深度推理)" },
+    { id: "gemini-3.1-pro-low", label: "Gemini 3.1 Pro" },
+    { id: "gemini-3.1-pro-high", label: "Gemini 3.1 Pro (深度推理)" },
+    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+    { id: "claude-opus-4-6-thinking", label: "Claude Opus 4.6" },
+  ],
+  minimax: [
+    { id: "MiniMax-M2.7", label: "MiniMax M2.7" },
+    { id: "MiniMax-M2.5", label: "MiniMax M2.5" },
+    { id: "MiniMax-M2.1", label: "MiniMax M2.1" },
   ],
 };
 
@@ -66,13 +98,17 @@ export const PROVIDER_LABELS: Record<AIProvider, string> = {
   anthropic: "Anthropic",
   openai: "OpenAI",
   openrouter: "OpenRouter",
+  dashscope: "阿里云百炼",
+  google: "Google",
+  minimax: "MiniMax",
 };
 
-const VALID_PROVIDERS: AIProvider[] = ["anthropic", "openai", "openrouter"];
+const VALID_PROVIDERS: AIProvider[] = ["anthropic", "openai", "openrouter", "dashscope", "google", "minimax"];
 
 export type CaptureMode = "auto" | "confirm";
 export type BubbleStyle = "circle" | "bar";
 export type BubblePosition = "bottom-right" | "bottom-center" | "bottom-left" | "top-right" | "top-center" | "top-left";
+export type DefaultAction = "save" | "dismiss";
 export type ThemeMode = "light" | "dark" | "system";
 
 const VALID_BUBBLE_POSITIONS: BubblePosition[] = [
@@ -80,11 +116,30 @@ const VALID_BUBBLE_POSITIONS: BubblePosition[] = [
   "top-right", "top-center", "top-left",
 ];
 
+// Track the current system theme listener so we can clean it up when theme changes
+let systemThemeCleanup: (() => void) | null = null;
+
 function applyTheme(theme: ThemeMode) {
+  // Clean up previous system theme listener
+  if (systemThemeCleanup) {
+    systemThemeCleanup();
+    systemThemeCleanup = null;
+  }
+
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
   const isDark =
     theme === "dark" ||
-    (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    (theme === "system" && mediaQuery.matches);
   document.documentElement.classList.toggle("dark", isDark);
+
+  // If "system" mode, listen for OS theme changes and auto-update
+  if (theme === "system") {
+    const handler = (e: MediaQueryListEvent) => {
+      document.documentElement.classList.toggle("dark", e.matches);
+    };
+    mediaQuery.addEventListener("change", handler);
+    systemThemeCleanup = () => mediaQuery.removeEventListener("change", handler);
+  }
 }
 
 // Patterns for detecting sensitive data (passwords, private keys, API keys, tokens, secrets)
@@ -126,14 +181,29 @@ interface SettingsState {
   captureMode: CaptureMode;
   bubbleStyle: BubbleStyle;
   bubblePosition: BubblePosition;
+  defaultAction: DefaultAction;
   sensitiveFilterEnabled: boolean;
   urlReadingEnabled: boolean;
+  radarIntervalDays: number;
   countdownDuration: number;
   screenshotDir: string;
   totalItems: number;
   diskUsageMB: number;
   isLoaded: boolean;
   xreaderStatus: XReaderStatus | null;
+
+  // OpenAI OAuth
+  oauthLoggedIn: boolean;
+  oauthEmail: string;
+  oauthLoading: boolean;
+
+  // Gemini OAuth
+  geminiOauthLoggedIn: boolean;
+  geminiOauthEmail: string;
+  geminiOauthLoading: boolean;
+  loadGeminiOAuthStatus: () => Promise<void>;
+  startGeminiOAuthLogin: () => Promise<void>;
+  logoutGeminiOAuth: () => Promise<void>;
 
   loadFromDB: () => Promise<void>;
   setApiKey: (key: string) => void;
@@ -144,12 +214,17 @@ interface SettingsState {
   setCaptureMode: (mode: CaptureMode) => void;
   setBubbleStyle: (style: BubbleStyle) => void;
   setBubblePosition: (position: BubblePosition) => void;
+  setDefaultAction: (action: DefaultAction) => void;
   setSensitiveFilterEnabled: (enabled: boolean) => void;
   setUrlReadingEnabled: (enabled: boolean) => void;
+  setRadarIntervalDays: (days: number) => void;
   setCountdownDuration: (seconds: number) => void;
   setScreenshotDir: (dir: string) => void;
   setStorageInfo: (totalItems: number, diskUsageMB: number) => void;
   loadXReaderStatus: () => Promise<void>;
+  loadOAuthStatus: () => Promise<void>;
+  startOAuthLogin: () => Promise<void>;
+  logoutOAuth: () => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -161,14 +236,24 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   captureMode: "confirm" as CaptureMode,
   bubbleStyle: "circle" as BubbleStyle,
   bubblePosition: "bottom-right" as BubblePosition,
+  defaultAction: "dismiss" as DefaultAction,
   sensitiveFilterEnabled: false,
   urlReadingEnabled: true,
+  radarIntervalDays: 3,
   countdownDuration: 5,
   screenshotDir: "~/Library/Application Support/com.xiaoyun.app/screenshots",
   totalItems: 0,
   diskUsageMB: 0,
   isLoaded: false,
   xreaderStatus: null,
+
+  oauthLoggedIn: false,
+  oauthEmail: "",
+  oauthLoading: false,
+
+  geminiOauthLoggedIn: false,
+  geminiOauthEmail: "",
+  geminiOauthLoading: false,
 
   loadFromDB: async () => {
     try {
@@ -180,6 +265,23 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
       const model = settings.ai_model || MODELS_BY_PROVIDER[provider][0].id;
 
+      // Load per-provider API key
+      const providerKey = settings[`ai_api_key_${provider}` as keyof typeof settings] || "";
+
+      // One-time migration: if legacy ai_api_key exists but NO provider-specific keys exist yet,
+      // migrate it to the current active provider only
+      let apiKey = providerKey;
+      if (!providerKey && settings.ai_api_key) {
+        const anyProviderKeyExists = VALID_PROVIDERS.some(
+          (p) => !!settings[`ai_api_key_${p}` as keyof typeof settings]
+        );
+        if (!anyProviderKeyExists) {
+          // First time: migrate legacy key to this provider
+          apiKey = settings.ai_api_key;
+          updateSetting(`ai_api_key_${provider}`, settings.ai_api_key).catch(() => {});
+        }
+      }
+
       const theme = (["light", "dark", "system"].includes(settings.theme)
         ? settings.theme
         : "system") as ThemeMode;
@@ -187,7 +289,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       applyTheme(theme);
 
       set({
-        apiKey: settings.ai_api_key || "",
+        apiKey,
         provider,
         model,
         theme,
@@ -197,14 +299,28 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         bubblePosition: (VALID_BUBBLE_POSITIONS.includes(settings.bubble_position as BubblePosition)
           ? settings.bubble_position
           : "bottom-right") as BubblePosition,
+        defaultAction: (settings.default_action === "save" ? "save" : "dismiss") as DefaultAction,
         sensitiveFilterEnabled: settings.sensitive_filter_enabled === "true",
         urlReadingEnabled: settings.url_reading_enabled !== "false",
+        radarIntervalDays: parseInt(settings.radar_interval_days || "3", 10),
         countdownDuration: parseInt(settings.countdown_seconds || "5", 10),
         screenshotDir:
           settings.screenshot_dir ||
           "~/Library/Application Support/com.xiaoyun.app/screenshots",
         isLoaded: true,
       });
+
+      // Load OAuth status
+      try {
+        const oauthStatus = await invoke<{ logged_in: boolean; email?: string }>("get_openai_oauth_status");
+        set((prev) => ({ ...prev, oauthLoggedIn: oauthStatus.logged_in, oauthEmail: oauthStatus.email || "" }));
+      } catch {}
+
+      // Load Gemini OAuth status
+      try {
+        const geminiStatus = await invoke<{ logged_in: boolean; email?: string }>("get_gemini_oauth_status");
+        set((prev) => ({ ...prev, geminiOauthLoggedIn: geminiStatus.logged_in, geminiOauthEmail: geminiStatus.email || "" }));
+      } catch {}
     } catch (e) {
       console.error("Failed to load settings from DB:", e);
       applyTheme("system");
@@ -213,15 +329,24 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   },
 
   setApiKey: (key) => {
+    const { provider } = useSettingsStore.getState();
     set({ apiKey: key });
-    updateSetting("ai_api_key", key).catch((e) =>
+    // Save to provider-specific key
+    updateSetting(`ai_api_key_${provider}`, key).catch((e) =>
       console.error("Failed to save api key:", e)
     );
   },
 
-  setProvider: (provider) => {
+  setProvider: async (provider) => {
     const firstModel = MODELS_BY_PROVIDER[provider][0].id;
-    set({ provider, model: firstModel });
+    // Load the API key for the new provider
+    try {
+      const settings = await getSettings();
+      const providerKey = settings[`ai_api_key_${provider}` as keyof typeof settings] || "";
+      set({ provider, model: firstModel, apiKey: providerKey });
+    } catch {
+      set({ provider, model: firstModel, apiKey: "" });
+    }
     updateSetting("ai_provider", provider).catch((e) =>
       console.error("Failed to save provider:", e)
     );
@@ -273,6 +398,13 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     );
   },
 
+  setDefaultAction: (action) => {
+    set({ defaultAction: action });
+    updateSetting("default_action", action).catch((e) =>
+      console.error("Failed to save default_action:", e)
+    );
+  },
+
   setSensitiveFilterEnabled: (enabled) => {
     set({ sensitiveFilterEnabled: enabled });
     updateSetting("sensitive_filter_enabled", String(enabled)).catch((e) =>
@@ -280,10 +412,18 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     );
   },
 
+
   setUrlReadingEnabled: (enabled) => {
     set({ urlReadingEnabled: enabled });
     updateSetting("url_reading_enabled", String(enabled)).catch((e) =>
       console.error("Failed to save url_reading_enabled:", e)
+    );
+  },
+
+  setRadarIntervalDays: (days) => {
+    set({ radarIntervalDays: days });
+    updateSetting("radar_interval_days", String(days)).catch((e) =>
+      console.error("Failed to save radar_interval_days:", e)
     );
   },
 
@@ -304,6 +444,64 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       set({ xreaderStatus: status });
     } catch (e) {
       console.error("Failed to load x-reader status:", e);
+    }
+  },
+
+  loadOAuthStatus: async () => {
+    try {
+      const status = await invoke<{ logged_in: boolean; email?: string }>("get_openai_oauth_status");
+      set({ oauthLoggedIn: status.logged_in, oauthEmail: status.email || "" });
+    } catch {
+      set({ oauthLoggedIn: false, oauthEmail: "" });
+    }
+  },
+
+  startOAuthLogin: async () => {
+    set({ oauthLoading: true });
+    try {
+      const status = await invoke<{ logged_in: boolean; email?: string }>("start_openai_oauth");
+      set({ oauthLoggedIn: status.logged_in, oauthEmail: status.email || "", oauthLoading: false });
+    } catch (e) {
+      set({ oauthLoading: false });
+      throw e;
+    }
+  },
+
+  logoutOAuth: async () => {
+    try {
+      await invoke("logout_openai_oauth");
+      set({ oauthLoggedIn: false, oauthEmail: "" });
+    } catch (e) {
+      console.error("Logout failed:", e);
+    }
+  },
+
+  loadGeminiOAuthStatus: async () => {
+    try {
+      const status = await invoke<{ logged_in: boolean; email?: string }>("get_gemini_oauth_status");
+      set({ geminiOauthLoggedIn: status.logged_in, geminiOauthEmail: status.email || "" });
+    } catch {
+      set({ geminiOauthLoggedIn: false, geminiOauthEmail: "" });
+    }
+  },
+
+  startGeminiOAuthLogin: async () => {
+    set({ geminiOauthLoading: true });
+    try {
+      const status = await invoke<{ logged_in: boolean; email?: string }>("start_gemini_oauth");
+      set({ geminiOauthLoggedIn: status.logged_in, geminiOauthEmail: status.email || "", geminiOauthLoading: false });
+    } catch (e) {
+      set({ geminiOauthLoading: false });
+      throw e;
+    }
+  },
+
+  logoutGeminiOAuth: async () => {
+    try {
+      await invoke("logout_gemini_oauth");
+      set({ geminiOauthLoggedIn: false, geminiOauthEmail: "" });
+    } catch (e) {
+      console.error("Gemini logout failed:", e);
     }
   },
 }));

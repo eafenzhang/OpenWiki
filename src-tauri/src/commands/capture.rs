@@ -4,6 +4,7 @@ use crate::storage::models::{CaptureEvent, CapturedContent, ContentType};
 use chrono::Utc;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use tauri::{Emitter, State};
 
 /// The application data directory name for storing captured images.
@@ -16,6 +17,8 @@ pub struct AppState {
     pub db: Arc<Database>,
     /// Stores the latest pending capture for the bubble window to retrieve.
     pub pending_capture: Arc<Mutex<Option<serde_json::Value>>>,
+    /// Temporarily suppresses macOS Reopen from pulling the main window forward.
+    pub suppress_reopen_until: Arc<Mutex<Option<Instant>>>,
 }
 
 /// Get the captures directory, creating it if necessary.
@@ -107,7 +110,10 @@ fn generate_thumbnail(source_path: &str, id: &str) -> Result<String, String> {
 
 /// Internal auto-save function called directly from CaptureDetector.
 /// Does not require Tauri State — takes a Database reference directly.
-pub fn save_content_auto(db: &Arc<Database>, event: CaptureEvent) -> Result<CapturedContent, String> {
+pub fn save_content_auto(
+    db: &Arc<Database>,
+    event: CaptureEvent,
+) -> Result<CapturedContent, String> {
     let now = Utc::now().to_rfc3339();
     let id = uuid::Uuid::new_v4().to_string();
 
@@ -178,15 +184,14 @@ pub fn save_content_auto(db: &Arc<Database>, event: CaptureEvent) -> Result<Capt
     // For URL content, use the clean detected URL (trimmed) as source_url
     let source_url = detected_url.clone();
 
-    // Check for duplicate content using content_hash before saving
+    // Check for duplicate content — if found, move it to the top by updating captured_at
     let repo = crate::storage::repository::Repository::new(db.clone());
-    if repo
-        .content_exists_by_hash(&content_hash)
-        .unwrap_or(false)
-    {
+    if let Ok(Some(existing)) = repo.find_content_by_hash(&content_hash) {
+        let _ = repo.touch_captured_at(&existing.id);
         log::info!(
-            "Duplicate content detected (hash={}), skipping save",
-            &content_hash[..16]
+            "Duplicate content detected (hash={}), moved to top: {}",
+            &content_hash[..16],
+            existing.id
         );
         return Err("Duplicate content".to_string());
     }
@@ -207,6 +212,13 @@ pub fn save_content_auto(db: &Arc<Database>, event: CaptureEvent) -> Result<Capt
         is_deleted: false,
         created_at: now.clone(),
         updated_at: now,
+        digested_at: None,
+        digest_action: None,
+        summary: None,
+        tags: None,
+        digest: None,
+        wiki_compile_hash: None,
+        wiki_assessed_hash: None,
     };
 
     repo.save_content(&content).map_err(|e| e.to_string())?;
@@ -217,6 +229,46 @@ pub fn save_content_auto(db: &Arc<Database>, event: CaptureEvent) -> Result<Capt
         content.content_type.as_str(),
         content.byte_size
     );
+
+    // Trigger auto-sync: export today's markdown if enabled
+    {
+        let db_clone = db.clone();
+        let captured_date = content.captured_at[..10].to_string(); // "YYYY-MM-DD"
+        std::thread::spawn(move || {
+            let repo = crate::storage::repository::Repository::new(db_clone);
+            // Check if auto-sync is enabled
+            let enabled = repo
+                .get_setting("datahub_export_enabled")
+                .ok()
+                .flatten()
+                .unwrap_or_default()
+                == "true";
+            let auto_sync = repo
+                .get_setting("datahub_auto_sync")
+                .ok()
+                .flatten()
+                .unwrap_or_else(|| "true".to_string())
+                == "true";
+            if enabled && auto_sync {
+                let export_dir = repo
+                    .get_setting("datahub_export_dir")
+                    .ok()
+                    .flatten()
+                    .unwrap_or_else(|| {
+                        dirs::document_dir()
+                            .unwrap_or_else(|| std::path::PathBuf::from("~/Documents"))
+                            .join("Xiaoyun")
+                            .to_string_lossy()
+                            .to_string()
+                    });
+                let export_path = std::path::Path::new(&export_dir);
+                match crate::export::markdown::export_day(&captured_date, &repo, export_path) {
+                    Ok(p) => log::info!("Auto-synced markdown: {}", p.display()),
+                    Err(e) => log::error!("Auto-sync failed: {}", e),
+                }
+            }
+        });
+    }
 
     Ok(content)
 }
@@ -308,8 +360,8 @@ pub fn confirm_capture(
     image_path: Option<String>,
     user_note: Option<String>,
 ) -> Result<CapturedContent, String> {
-    // Hide bubble window from Rust side (backup)
-    hide_bubble_window(&app);
+    // NOTE: Do NOT close the bubble window here.
+    // The frontend shows a green checkmark animation for 1.5s before closing itself.
 
     let event = CaptureEvent {
         content_type,
@@ -318,7 +370,18 @@ pub fn confirm_capture(
         raw_text,
         image_path,
     };
-    let mut content = save_content_auto(&state.db, event)?;
+    let mut content = match save_content_auto(&state.db, event) {
+        Ok(c) => c,
+        Err(e) if e.contains("Duplicate content") => {
+            // Content was moved to top, emit refresh event
+            let _ = app.emit(
+                "content:url-fetched",
+                serde_json::json!({"id": "", "reorder": true}),
+            );
+            return Err("已移到最前面".to_string());
+        }
+        Err(e) => return Err(e),
+    };
 
     // Attach user note if provided
     if let Some(ref note) = user_note {
@@ -340,7 +403,37 @@ pub fn confirm_capture(
     // Auto-fetch for URL content
     spawn_auto_url_fetch(&app, &state.db, &content);
 
+    // AI summary for text content (images get it after OCR, URLs after fetch)
+    if content.content_type.as_str() == "text" {
+        if let Some(ref text) = content.raw_text {
+            spawn_summary_task(
+                state.db.clone(),
+                app.clone(),
+                content.id.clone(),
+                text.clone(),
+            );
+        }
+    }
+
     Ok(content)
+}
+
+/// Get multiple content items by their IDs. Used by radar detail view.
+#[tauri::command]
+pub fn get_contents_by_ids(
+    state: State<'_, AppState>,
+    ids: Vec<String>,
+) -> Result<Vec<CapturedContent>, String> {
+    let repo = crate::storage::repository::Repository::new(state.db.clone());
+    let mut results = Vec::new();
+    for id in &ids {
+        match repo.get_content_by_id(id) {
+            Ok(Some(content)) => results.push(content),
+            Ok(None) => {} // skip missing
+            Err(e) => log::warn!("Failed to get content {}: {}", id, e),
+        }
+    }
+    Ok(results)
 }
 
 /// Called by the bubble window to retrieve the latest pending capture.
@@ -349,7 +442,9 @@ pub fn confirm_capture(
 pub fn get_pending_capture(
     state: State<'_, AppState>,
 ) -> Result<Option<serde_json::Value>, String> {
-    let data = state.pending_capture.lock()
+    let data = state
+        .pending_capture
+        .lock()
         .map_err(|e| format!("Lock error: {}", e))?
         .take();
     Ok(data)
@@ -387,13 +482,15 @@ pub async fn retry_url_fetch(
     let repo = crate::storage::repository::Repository::new(db.clone());
 
     // Find the content record and get its source_url
-    let content = repo.get_all_content(500, 0)
+    let content = repo
+        .get_all_content(500, 0)
         .map_err(|e| format!("DB error: {}", e))?
         .into_iter()
         .find(|c| c.id == content_id)
         .ok_or_else(|| "Content not found".to_string())?;
 
-    let url = content.source_url
+    let url = content
+        .source_url
         .ok_or_else(|| "No source URL for this content".to_string())?;
 
     log::info!("Retrying URL fetch for {} (url={})", content_id, url);
@@ -403,11 +500,22 @@ pub async fn retry_url_fetch(
         let reader = crate::capture::url_reader::UrlReader::new();
         match reader.fetch_content(&url).await {
             Ok(result) => {
+                let db_for_summary = db.clone();
                 let repo = crate::storage::repository::Repository::new(db);
                 if let Err(e) = repo.update_content_for_url(&content_id, &result.content, &url) {
                     log::error!("Failed to update URL content on retry: {}", e);
                 } else {
-                    log::info!("URL retry succeeded for {}: {} chars", content_id, result.content.len());
+                    log::info!(
+                        "URL retry succeeded for {}: {} chars",
+                        content_id,
+                        result.content.len()
+                    );
+                    spawn_summary_task(
+                        db_for_summary,
+                        app.clone(),
+                        content_id.clone(),
+                        result.content.clone(),
+                    );
                     let _ = app.emit(
                         "content:url-fetched",
                         serde_json::json!({
@@ -437,33 +545,35 @@ pub async fn retry_url_fetch(
 /// Run OCR on an image content item using macOS Vision framework.
 /// Saves the recognized text to raw_text and returns it.
 #[tauri::command]
-pub async fn ocr_image(
-    state: State<'_, AppState>,
-    content_id: String,
-) -> Result<String, String> {
+pub async fn ocr_image(state: State<'_, AppState>, content_id: String) -> Result<String, String> {
     let db = state.db.clone();
     let repo = crate::storage::repository::Repository::new(db.clone());
 
     // Find the content record
-    let content = repo.get_all_content(500, 0)
+    let content = repo
+        .get_all_content(500, 0)
         .map_err(|e| format!("DB error: {}", e))?
         .into_iter()
         .find(|c| c.id == content_id)
         .ok_or_else(|| "Content not found".to_string())?;
 
-    let image_path = content.image_path
+    let image_path = content
+        .image_path
         .ok_or_else(|| "No image path for this content".to_string())?;
 
-    log::info!("[OCR] Starting OCR for {} (path={})", content_id, image_path);
+    log::info!(
+        "[OCR] Starting OCR for {} (path={})",
+        content_id,
+        image_path
+    );
 
     // Run OCR in a blocking thread (Swift process is synchronous)
     let path_clone = image_path.clone();
-    let text = tokio::task::spawn_blocking(move || {
-        crate::capture::ocr::recognize_text(&path_clone)
-    })
-    .await
-    .map_err(|e| format!("OCR task error: {}", e))?
-    .map_err(|e| format!("OCR failed: {}", e))?;
+    let text =
+        tokio::task::spawn_blocking(move || crate::capture::ocr::recognize_text(&path_clone))
+            .await
+            .map_err(|e| format!("OCR task error: {}", e))?
+            .map_err(|e| format!("OCR failed: {}", e))?;
 
     // Save OCR text to database
     repo.update_raw_text(&content_id, &text)
@@ -474,16 +584,17 @@ pub async fn ocr_image(
 }
 
 /// Spawn auto-OCR for image content in the background.
-fn spawn_auto_ocr(
-    app: &tauri::AppHandle,
-    db: &Arc<Database>,
-    content: &CapturedContent,
-) {
+fn spawn_auto_ocr(app: &tauri::AppHandle, db: &Arc<Database>, content: &CapturedContent) {
     if content.content_type.as_str() != "image" {
         return;
     }
     // Skip if already has text (OCR already done)
-    if content.raw_text.as_ref().map(|t| !t.is_empty()).unwrap_or(false) {
+    if content
+        .raw_text
+        .as_ref()
+        .map(|t| !t.is_empty())
+        .unwrap_or(false)
+    {
         return;
     }
     let image_path = match &content.image_path {
@@ -504,11 +615,22 @@ fn spawn_auto_ocr(
         .await
         {
             Ok(Ok(text)) => {
+                let db_for_summary = db_clone.clone();
                 let repo = crate::storage::repository::Repository::new(db_clone);
                 if let Err(e) = repo.update_raw_text(&content_id, &text) {
                     log::error!("[OCR] Failed to save: {}", e);
                 } else {
-                    log::info!("[OCR] Auto-OCR done for {}: {} chars", content_id, text.len());
+                    log::info!(
+                        "[OCR] Auto-OCR done for {}: {} chars",
+                        content_id,
+                        text.len()
+                    );
+                    spawn_summary_task(
+                        db_for_summary,
+                        app_clone.clone(),
+                        content_id.clone(),
+                        text.clone(),
+                    );
                     let _ = app_clone.emit(
                         "content:ocr-done",
                         serde_json::json!({
@@ -529,11 +651,7 @@ fn spawn_auto_ocr(
 }
 
 /// Spawn auto URL fetch for URL content in the background.
-fn spawn_auto_url_fetch(
-    app: &tauri::AppHandle,
-    db: &Arc<Database>,
-    content: &CapturedContent,
-) {
+fn spawn_auto_url_fetch(app: &tauri::AppHandle, db: &Arc<Database>, content: &CapturedContent) {
     if content.content_type.as_str() != "url" {
         return;
     }
@@ -560,11 +678,22 @@ fn spawn_auto_url_fetch(
         let reader = crate::capture::url_reader::UrlReader::new();
         match reader.fetch_content(&url).await {
             Ok(result) => {
+                let db_for_summary = db_clone.clone();
                 let repo = crate::storage::repository::Repository::new(db_clone);
                 if let Err(e) = repo.update_content_for_url(&content_id, &result.content, &url) {
                     log::error!("Failed to update URL content: {}", e);
                 } else {
-                    log::info!("URL fetched for {}: {} chars", content_id, result.content.len());
+                    log::info!(
+                        "URL fetched for {}: {} chars",
+                        content_id,
+                        result.content.len()
+                    );
+                    spawn_summary_task(
+                        db_for_summary,
+                        app_clone.clone(),
+                        content_id.clone(),
+                        result.content.clone(),
+                    );
                     let _ = app_clone.emit(
                         "content:url-fetched",
                         serde_json::json!({
@@ -589,6 +718,239 @@ fn spawn_auto_url_fetch(
     });
 }
 
+/// Spawn an async task to generate an AI summary for a content item.
+/// Silently skips if no API key configured or text too short.
+pub fn spawn_summary_task(
+    db: Arc<Database>,
+    app: tauri::AppHandle,
+    content_id: String,
+    text: String,
+) {
+    // At least 50 characters to be worth summarizing — very short text
+    // causes AI to summarize the prompt itself instead of the content
+    if text.trim().len() < 50 {
+        return;
+    }
+    tauri::async_runtime::spawn(async move {
+        let repo = crate::storage::repository::Repository::new(db.clone());
+
+        // Helper: trigger wiki auto-compile after summary is saved
+        let maybe_wiki_compile = |db_ref: std::sync::Arc<crate::storage::database::Database>, cid: String| {
+            let wiki_auto = crate::storage::repository::Repository::new(db_ref.clone())
+                .get_setting("wiki_auto_compile")
+                .ok()
+                .flatten()
+                .unwrap_or_else(|| "true".to_string())
+                == "true";
+            if wiki_auto {
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                    if let Err(e) = crate::ai::wiki_engine::auto_compile(db_ref, &cid).await {
+                        log::warn!("Wiki auto-compile failed for {}: {}", cid, e);
+                    }
+                });
+            }
+        };
+
+        let provider_str = repo
+            .get_setting("ai_provider")
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| "anthropic".to_string());
+
+        // Load per-provider API key, fall back to legacy key
+        let provider_key = format!("ai_api_key_{}", provider_str);
+        let api_key = repo
+            .get_setting(&provider_key)
+            .ok()
+            .flatten()
+            .or_else(|| repo.get_setting("ai_api_key").ok().flatten())
+            .unwrap_or_default();
+
+        let model = repo
+            .get_setting("ai_model")
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
+
+        // 发送完整内容给 AI（上限 5000 字，覆盖绝大多数文章）
+        let content_for_ai: String = text.chars().take(5000).collect();
+        let prompt = format!(
+            "通读以下全文，返回JSON格式，包含三个字段：\n\
+             1. \"tags\": 2-3个具体标签，必须包含文中的具体名词（人名、公司名、产品名、方法名、术语等）。\n\
+                标签格式：\"具体名词+核心观点\"，让人一看就知道这篇讲了什么。\n\
+                好的标签：\"Musk第一性原理造火箭\"、\"Stripe的开发者体验飞轮\"、\"RAG检索增强生成\"、\"桥水全天候策略对冲\"\n\
+                差的标签：\"创业思维\"、\"产品设计\"、\"AI应用\"、\"投资方法\"（没有具体名词，太泛）\n\
+                每个标签4-12个字，用中文简体（专有名词保留原文）\n\
+             2. \"summary\": 用大白话说这篇内容讲了什么（中文简体，不超过80字）。\n\
+                像朋友转发文章时附的一句话，让人一看就知道要不要点开。\n\
+                不要用书面语、不要用\"探讨\"\"阐述\"\"倡导\"这类词，就正常说话。\n\
+             3. \"digest\": 这篇内容的核心要点总结（中文简体，150-200字）。\n\
+                像一个聪明的朋友帮你读完后告诉你重点。\n\
+                要有结构感：先说核心观点，再说关键论据或例子，最后说结论。\n\
+                不要用\"本文\"\"作者\"这种书面词，直接说内容本身。\n\
+             无论原文是什么语言，都必须用中文简体（专有名词保留原文）。只返回JSON。\n\
+             示例：{{\"tags\":[\"Dalio全天候策略对冲\",\"Shannon再平衡套利\"],\"summary\":\"教你怎么在股市暴跌时抄底，关键是平时得留够现金\",\"digest\":\"投资的核心矛盾是想要高收益又怕亏钱。Dalio的全天候策略用四个桶（股票、长期债、商品、通胀保护债）来分散风险，不管经济好坏都能活着。关键数据：过去30年回撤最大只有3.9%，而纯股票组合最大回撤超过50%。但这个策略牺牲了上涨空间，年化只有9%左右。适合不想操心、愿意接受中等回报的人。\"}}\n\n{}",
+            content_for_ai
+        );
+
+        // Try Codex OAuth first if provider is openai
+        if provider_str == "openai" {
+            if let Some(result) = crate::ai::attention_analyzer::try_codex_call(
+                db.clone(),
+                "You are an AI assistant that analyzes content and returns JSON.",
+                &prompt,
+                0.5,
+                false, // 摘要，不是深度分析
+            )
+            .await
+            {
+                match result {
+                    Ok(raw) => {
+                        log::info!("Codex OAuth 摘要生成成功 for {}", content_id);
+                        let (summary, tags, digest) = extract_summary_tags_digest(&raw);
+                        if !summary.is_empty() {
+                            let tags_str = tags.join(",");
+                            let _ = repo.update_summary_and_tags(
+                                &content_id,
+                                &summary,
+                                &tags_str,
+                                &digest,
+                            );
+                            let _ = app.emit("content-summary-ready", &content_id);
+                            maybe_wiki_compile(db.clone(), content_id.clone());
+                            log::info!(
+                                "Summary generated for {}: [{}] {}",
+                                content_id,
+                                tags_str,
+                                summary
+                            );
+                        }
+                        return;
+                    }
+                    Err(e) => {
+                        log::warn!("Codex OAuth 失败，回退到 API Key: {}", e);
+                        // Fall through to API key path below
+                    }
+                }
+            }
+        }
+
+        // Try Gemini OAuth if provider is google
+        if provider_str == "google" {
+            if let Some(result) = crate::ai::attention_analyzer::try_gemini_call(
+                db.clone(), "", &prompt, 0.5, false, // 摘要，不是深度分析
+            ).await {
+                match result {
+                    Ok(raw) => {
+                        log::info!("Gemini OAuth 摘要生成成功 for {}", content_id);
+                        let (summary, tags, digest) = extract_summary_tags_digest(&raw);
+                        if !summary.is_empty() {
+                            let tags_str = tags.join(",");
+                            let _ = repo.update_summary_and_tags(&content_id, &summary, &tags_str, &digest);
+                            let _ = app.emit("content-summary-ready", &content_id);
+                            maybe_wiki_compile(db.clone(), content_id.clone());
+                            log::info!("Summary generated for {}: [{}] {}", content_id, tags_str, summary);
+                        }
+                        return;
+                    }
+                    Err(e) => {
+                        log::warn!("Gemini OAuth 失败，回退到 API Key: {}", e);
+                    }
+                }
+            }
+        }
+
+        // API key path — skip if no key configured
+        if api_key.is_empty() {
+            return;
+        }
+
+        let provider = crate::ai::attention_analyzer::AnalysisProvider::from_str(&provider_str);
+        match crate::ai::attention_analyzer::call_analysis_api(
+            &provider, &api_key, &model, "", &prompt, 1024,
+        )
+        .await
+        {
+            Ok(raw) => {
+                let (summary, tags, digest) = extract_summary_tags_digest(&raw);
+                if !summary.is_empty() {
+                    let tags_str = tags.join(",");
+                    let _ = repo.update_summary_and_tags(&content_id, &summary, &tags_str, &digest);
+                    let _ = app.emit("content-summary-ready", &content_id);
+                    maybe_wiki_compile(db.clone(), content_id.clone());
+                    log::info!(
+                        "Summary generated for {}: [{}] {}",
+                        content_id,
+                        tags_str,
+                        summary
+                    );
+                }
+            }
+            Err(e) => {
+                log::warn!("Summary generation failed for {}: {}", content_id, e);
+            }
+        }
+    });
+}
+
+/// Extract summary, tags, and digest from AI response.
+/// Expected format: {"tags":["标签1","标签2"],"summary":"一句话","digest":"段落总结"}
+fn extract_summary_tags_digest(raw: &str) -> (String, Vec<String>, String) {
+    let trimmed = raw.trim();
+    // Strip markdown code block wrappers (```json ... ``` or ``` ... ```)
+    let cleaned = if trimmed.starts_with("```") {
+        let without_prefix = if let Some(rest) = trimmed.strip_prefix("```json") {
+            rest
+        } else {
+            &trimmed[3..]
+        };
+        without_prefix
+            .strip_suffix("```")
+            .unwrap_or(without_prefix)
+            .trim()
+    } else {
+        trimmed
+    };
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(cleaned) {
+        let summary = v
+            .get("summary")
+            .and_then(|v| v.as_str())
+            .or_else(|| v.get("text").and_then(|v| v.as_str()))
+            .unwrap_or("")
+            .trim()
+            .to_string();
+
+        let tags = v
+            .get("tags")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.trim().to_string()))
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        let digest = v
+            .get("digest")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string();
+
+        if !summary.is_empty() {
+            return (summary, tags, digest);
+        }
+    }
+    // Not JSON — treat as plain text summary
+    let stripped = trimmed
+        .trim_matches('"')
+        .trim_matches('「')
+        .trim_matches('」');
+    (stripped.trim().to_string(), vec![], String::new())
+}
+
 /// Close (destroy) the bubble window completely.
 fn hide_bubble_window(app: &tauri::AppHandle) {
     use tauri::Manager;
@@ -596,4 +958,40 @@ fn hide_bubble_window(app: &tauri::AppHandle) {
         let _ = win.close();
         log::info!("Bubble window closed/destroyed");
     }
+}
+
+/// Debug logging command — writes to a local file so we can see what happens at runtime.
+#[tauri::command]
+pub fn debug_log(message: String) {
+    let path = std::env::temp_dir().join("xiaoyun_debug.log");
+    use std::io::Write;
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
+        let now = chrono::Local::now().format("%H:%M:%S%.3f");
+        let _ = writeln!(f, "[{}] {}", now, message);
+    }
+    log::info!("[BUBBLE_DEBUG] {}", message);
+}
+
+/// Test AI API connection with the given provider, model, and key.
+/// Returns Ok(model_response) on success, Err(error_message) on failure.
+#[tauri::command]
+pub async fn test_ai_connection(
+    provider: String,
+    model: String,
+    api_key: String,
+) -> Result<String, String> {
+    let p = crate::ai::attention_analyzer::AnalysisProvider::from_str(&provider);
+    crate::ai::attention_analyzer::call_analysis_api(
+        &p,
+        &api_key,
+        &model,
+        "",
+        "回复\"连接成功\"这四个字，不要说其他内容。",
+        64,
+    )
+    .await
 }

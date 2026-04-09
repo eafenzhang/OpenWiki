@@ -16,6 +16,13 @@ export interface CapturedContent {
   is_deleted: boolean;
   created_at: string;
   updated_at: string;
+  digested_at?: string;
+  digest_action?: string;
+  summary?: string;
+  tags?: string;
+  digest?: string;
+  wiki_compile_hash?: string;
+  wiki_assessed_hash?: string;
 }
 
 export interface CaptureEvent {

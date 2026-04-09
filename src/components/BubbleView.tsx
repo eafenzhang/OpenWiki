@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { convertFileSrc } from "@tauri-apps/api/core";
 
 const DEFAULT_COUNTDOWN = 5;
 const CIRCLE_SIZE = 48;
+const CIRCLE_WIN_H = 64; // Window height for circle mode (48px circle + 16px bounce padding)
 const CAPSULE_W = 320;
-const CAPSULE_H = 48;
+const EXPANDED_H = 140; // Height when expanded with preview + input
 
 interface PendingCapture {
   content_type: string;
@@ -32,10 +34,15 @@ export default function BubbleView() {
   const [expanded, setExpanded] = useState(false);
   const [memo, setMemo] = useState("");
   const [bubblePosition, setBubblePosition] = useState("bottom-right");
+  const [defaultAction, setDefaultAction] = useState<"save" | "dismiss">("dismiss");
+  // ★ Key state: once confirmed, ONLY render success UI. Nothing can override this.
+  const [confirmed, setConfirmed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingRef = useRef<PendingCapture | null>(null);
   const appWindow = useRef(getCurrentWindow());
   const inputRef = useRef<HTMLInputElement>(null);
+  // Snapshot of countdown when memo is expanded (for pause/resume)
+  const pausedCountdownRef = useRef<number | null>(null);
 
   useEffect(() => { pendingRef.current = pending; }, [pending]);
 
@@ -57,9 +64,10 @@ export default function BubbleView() {
 
   const confirm = useCallback(async () => {
     const capture = pendingRef.current;
-    if (!capture || saving) return;
+    if (!capture || saving || confirmed) return;
     clearTimer();
     setSaving(true);
+
     try {
       await invoke("confirm_capture", {
         contentType: capture.content_type,
@@ -69,28 +77,79 @@ export default function BubbleView() {
         imagePath: capture.image_path,
         userNote: memo.trim() || null,
       });
-    } catch (e) { console.error("confirm failed:", e); }
-    await closeWindow();
-  }, [saving, clearTimer, closeWindow, memo]);
+    } catch (e) {
+      console.error("confirm failed:", e);
+    }
 
-  // Expand circle → capsule with native window resize for IME support
+    // If expanded, shrink window back to circle size first
+    if (expanded) {
+      try {
+        const win = appWindow.current;
+        const { LogicalSize, LogicalPosition } = await import("@tauri-apps/api/dpi");
+        const scale = await win.scaleFactor();
+        const pos = await win.outerPosition();
+        const heightDiff = EXPANDED_H - CIRCLE_WIN_H;
+        await win.setPosition(new LogicalPosition(pos.x / scale, pos.y / scale + heightDiff));
+        await win.setSize(new LogicalSize(CAPSULE_W, CIRCLE_WIN_H));
+      } catch {}
+    }
+
+    // Show confirmed state — no DOM swap, just CSS transitions on existing elements
+    setExpanded(false);
+    setConfirmed(true);
+
+    // Close window after 1.2 seconds
+    setTimeout(async () => {
+      try { await appWindow.current.close(); } catch {}
+    }, 1200);
+  }, [saving, confirmed, clearTimer, memo, expanded, bubblePosition, bubbleStyle]);
+
+  // Expand circle → card with preview + input
   const expandToCapsule = useCallback(async () => {
-    if (expanded || bubbleStyle !== "circle") return;
-    clearTimer(); // pause countdown while typing
+    if (expanded || bubbleStyle !== "circle" || confirmed) return;
+    // Snapshot current countdown before pausing
+    pausedCountdownRef.current = countdown;
+    clearTimer();
     setExpanded(true);
-    // Resize native window taller to accommodate IME candidate window
+    // Resize native window and move it up so it expands upward (not behind Dock)
     try {
       const win = appWindow.current;
-      const size = await win.innerSize();
-      // Increase height to 200px to give room for IME popup
-      await win.setSize(new (await import("@tauri-apps/api/dpi")).LogicalSize(size.width / (await win.scaleFactor()), 200));
+      const { LogicalSize, LogicalPosition } = await import("@tauri-apps/api/dpi");
+      const scale = await win.scaleFactor();
+      const pos = await win.outerPosition();
+      const heightDiff = EXPANDED_H - CIRCLE_WIN_H; // 140 - 48 = 92px
+      // Move window up by the height difference
+      await win.setPosition(new LogicalPosition(pos.x / scale, pos.y / scale - heightDiff));
+      await win.setSize(new LogicalSize(CAPSULE_W, EXPANDED_H));
     } catch (e) {
       console.error("Failed to resize bubble window:", e);
     }
-    setTimeout(() => inputRef.current?.focus(), 350); // focus after animation
-  }, [expanded, bubbleStyle, clearTimer]);
+    setTimeout(() => inputRef.current?.focus(), 350);
+  }, [expanded, bubbleStyle, clearTimer, confirmed, countdown]);
 
-  // On mount: fetch pending data + bubble style
+  // Collapse memo panel back to circle, resume countdown from snapshot
+  const collapseCapsule = useCallback(async () => {
+    if (!expanded || confirmed) return;
+    setExpanded(false);
+    setMemo("");
+    // Restore countdown from snapshot
+    if (pausedCountdownRef.current !== null) {
+      setCountdown(pausedCountdownRef.current);
+      pausedCountdownRef.current = null;
+    }
+    // Resize window back to circle
+    try {
+      const win = appWindow.current;
+      const { LogicalSize, LogicalPosition } = await import("@tauri-apps/api/dpi");
+      const scale = await win.scaleFactor();
+      const pos = await win.outerPosition();
+      const heightDiff = EXPANDED_H - CIRCLE_WIN_H;
+      await win.setPosition(new LogicalPosition(pos.x / scale, pos.y / scale + heightDiff));
+      await win.setSize(new LogicalSize(CAPSULE_W, CIRCLE_WIN_H));
+    } catch {}
+  }, [expanded, confirmed]);
+
+  // On mount: fetch pending data + bubble style + default_action
   useEffect(() => {
     const init = async () => {
       try {
@@ -101,6 +160,7 @@ export default function BubbleView() {
           const secs = parseInt(settings.countdown_seconds, 10);
           if (secs >= 1 && secs <= 30) { setCountdownMax(secs); setCountdown(secs); }
         }
+        if (settings?.default_action === "save") setDefaultAction("save");
       } catch {}
       try {
         const data = await invoke<PendingCapture | null>("get_pending_capture");
@@ -111,26 +171,84 @@ export default function BubbleView() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Listen for events
+  // ★ Global keyboard listener
   useEffect(() => {
+    if (!pending || confirmed) return;
+
+    const handler = (e: KeyboardEvent) => {
+      // Don't handle if input is focused (input handles its own Enter)
+      const isInputFocused = document.activeElement === inputRef.current;
+
+      if (e.key === "Enter") {
+        if (isInputFocused) return; // Let input's onKeyDown handle it
+        e.preventDefault();
+        // Enter = always save (universal convention)
+        confirm();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        if (expanded) {
+          // Collapse memo, resume countdown
+          collapseCapsule();
+        } else {
+          // Esc = always dismiss/cancel (universal convention)
+          dismiss();
+        }
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        // Tab only works in circle mode to expand memo
+        if (!expanded && bubbleStyle === "circle") {
+          expandToCapsule();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [pending, confirmed, expanded, defaultAction, bubbleStyle, confirm, dismiss, expandToCapsule, collapseCapsule]);
+
+  // ★ Listen for new capture events — UNSUBSCRIBE when expanded or confirmed
+  useEffect(() => {
+    if (expanded || confirmed) {
+      invoke("debug_log", { message: `[LISTENER] expanded=${expanded} confirmed=${confirmed}, NOT listening` }).catch(() => {});
+      return;
+    }
+
+    invoke("debug_log", { message: "[LISTENER] subscribing to capture:pending" }).catch(() => {});
     const unlisten = listen<PendingCapture>("capture:pending", (event) => {
+      invoke("debug_log", { message: `[LISTENER] capture:pending received! type=${event.payload.content_type}` }).catch(() => {});
       clearTimer(); setPending(event.payload); setCountdown(countdownMax);
-      setExpanded(false); setMemo("");
+      setExpanded(false); setMemo(""); setConfirmed(false); setSaving(false);
+      pausedCountdownRef.current = null;
     });
     return () => { unlisten.then((fn) => fn()); };
-  }, [clearTimer, countdownMax]);
+  }, [expanded, confirmed, clearTimer, countdownMax]);
 
-  // Countdown (only when NOT expanded)
+  // Countdown (only when NOT expanded and NOT confirmed)
+  // ★ When countdown reaches 0, execute default_action (not always dismiss)
   useEffect(() => {
-    if (!pending || expanded) return;
+    if (!pending || expanded || confirmed) return;
     timerRef.current = setInterval(() => {
       setCountdown((prev) => {
-        if (prev <= 1) { setTimeout(() => dismiss(), 0); return 0; }
+        if (prev <= 1) {
+          setTimeout(() => {
+            if (defaultAction === "save") confirm();
+            else dismiss();
+          }, 0);
+          return 0;
+        }
         return prev - 1;
       });
     }, 1000);
     return () => clearTimer();
-  }, [pending, expanded, dismiss, clearTimer]);
+  }, [pending, expanded, confirmed, defaultAction, dismiss, confirm, clearTimer]);
+
+  const isRight = bubblePosition.includes("right");
+  const isLeft = bubblePosition.includes("left");
+
+  // Default action label for bar mode UI hint
+  const barActionHint = defaultAction === "save" ? `${countdown}s 后自动保存` : `${countdown}s 后自动丢弃`;
+
+  // ════════════════════════════════════════════════════════════
 
   const progress = pending ? countdown / countdownMax : 0;
   const circumference = 2 * Math.PI * 16;
@@ -139,212 +257,275 @@ export default function BubbleView() {
     return <div style={{ background: "transparent" }} />;
   }
 
-  // Determine circle alignment within the capsule-sized window
-  // right → circle at right edge, expands left
-  // left → circle at left edge, expands right
-  // center → circle at center, expands both sides
-  const isRight = bubblePosition.includes("right");
-  const isLeft = bubblePosition.includes("left");
+  const isImage = pending.content_type === "image";
+  const isUrl = pending.content_type === "url";
 
-  // ─── Circle Mode (animated circle → capsule) ───
+  // Preview text for the expanded view
+  const previewText = isImage
+    ? ""
+    : isUrl
+    ? (pending.preview || pending.raw_text || "").slice(0, 60)
+    : (pending.raw_text || pending.preview || "").slice(0, 60);
+
+  // ─── Circle Mode ───
   if (bubbleStyle === "circle") {
-    const isImage = pending.content_type === "image";
-
-    // The container width animates from 48px to 320px
-    const containerStyle: React.CSSProperties = {
-      width: expanded ? CAPSULE_W : CIRCLE_SIZE,
-      height: CAPSULE_H,
-      borderRadius: CAPSULE_H / 2,
-      background: "rgba(15, 15, 30, 0.88)",
-      backdropFilter: "blur(20px)",
-      WebkitBackdropFilter: "blur(20px)",
-      boxShadow: [
-        "0 4px 24px rgba(0, 0, 0, 0.45)",
-        "0 0 12px rgba(99, 102, 241, 0.15)",
-        "inset 0 1px 0 rgba(255, 255, 255, 0.1)",
-        "inset 0 0 0 1px rgba(255, 255, 255, 0.08)",
-      ].join(", "),
-      transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-      overflow: "hidden",
-      // Position within the 320x48 window:
-      // right-aligned position → float the container to the right
-      marginLeft: isRight ? "auto" : isLeft ? "0" : "auto",
-      marginRight: isRight ? "0" : isLeft ? "auto" : "auto",
-    };
-
-    return (
-      <div
-        className="select-none"
-        style={{
-          width: CAPSULE_W,
-          height: CAPSULE_H,
-          background: "transparent",
-          display: "flex",
-          justifyContent: isRight ? "flex-end" : isLeft ? "flex-start" : "center",
-        }}
-      >
-        <div style={containerStyle}>
-          <div className="flex items-center h-full" style={{ minWidth: CAPSULE_W }}>
-            {/* Left side: icon (always visible) */}
-            <div
-              className="flex-shrink-0 flex items-center justify-center cursor-pointer"
-              style={{ width: CIRCLE_SIZE, height: CIRCLE_SIZE }}
-              onClick={expanded ? undefined : expandToCapsule}
-            >
-              <div className="relative" style={{ width: 38, height: 38 }}>
-                {/* Countdown ring */}
-                {!expanded && (
-                  <svg className="absolute inset-0 -rotate-90" width="38" height="38" viewBox="0 0 38 38">
-                    <circle cx="19" cy="19" r="15" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
-                    <circle
-                      cx="19" cy="19" r="15"
-                      fill="none" stroke="url(#cg)" strokeWidth="2" strokeLinecap="round"
-                      strokeDasharray={2 * Math.PI * 15}
-                      strokeDashoffset={2 * Math.PI * 15 * (1 - progress)}
-                      className="transition-all duration-1000 ease-linear"
-                    />
-                    <defs>
-                      <linearGradient id="cg" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#818cf8" />
-                        <stop offset="100%" stopColor="#c084fc" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                )}
-                {/* Icon center */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-sm leading-none">{isImage ? "📷" : "📋"}</span>
-                  {!expanded && (
-                    <span className="text-[9px] font-bold text-indigo-400 mt-0.5">{countdown}s</span>
-                  )}
+    // Expanded state: card with preview + input
+    if (expanded) {
+      return (
+        <div
+          className="select-none"
+          style={{
+            width: CAPSULE_W,
+            height: EXPANDED_H,
+            background: "transparent",
+            display: "flex",
+            justifyContent: isRight ? "flex-end" : isLeft ? "flex-start" : "center",
+          }}
+        >
+          <div
+            style={{
+              width: CAPSULE_W,
+              height: EXPANDED_H,
+              borderRadius: 16,
+              background: "rgb(15, 15, 30)",
+              boxShadow: [
+                "0 8px 32px rgba(0, 0, 0, 0.5)",
+                "0 0 12px rgba(249, 115, 22, 0.15)",
+                "inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+                "inset 0 0 0 1px rgba(255, 255, 255, 0.08)",
+              ].join(", "),
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            {/* Preview area */}
+            <div className="flex-1 px-3 pt-3 pb-2 min-h-0 overflow-hidden">
+              {isImage && pending.image_path ? (
+                <div className="flex items-center gap-2 h-full">
+                  <img
+                    src={convertFileSrc(pending.image_path)}
+                    alt="preview"
+                    className="h-full max-h-[60px] rounded-lg object-cover border border-white/10"
+                  />
+                  <span className="text-[12px] text-white/40">截图 / 图片</span>
                 </div>
-              </div>
+              ) : isUrl ? (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px]">🔗</span>
+                    <span className="text-[10px] text-white/30 uppercase">{pending.source_app}</span>
+                  </div>
+                  <p className="text-[12px] text-white/70 leading-snug line-clamp-2">
+                    {previewText || "链接内容"}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px]">📋</span>
+                    <span className="text-[10px] text-white/30 uppercase">{pending.source_app}</span>
+                  </div>
+                  <p className="text-[12px] text-white/70 leading-snug line-clamp-2">
+                    {previewText || "文本内容"}
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* Expanded content: input + actions */}
-            <div
-              className="flex items-center gap-2 flex-1 pr-3 min-w-0"
-              style={{
-                opacity: expanded ? 1 : 0,
-                transition: "opacity 0.2s ease-out 0.15s",
-                pointerEvents: expanded ? "auto" : "none",
-              }}
-            >
+            {/* Divider */}
+            <div className="mx-3 h-[1px] bg-white/[0.06]" />
+
+            {/* Input + actions */}
+            <div className="flex items-center gap-2 px-3 py-2.5">
               <input
                 ref={inputRef}
                 type="text"
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") confirm();
-                  if (e.key === "Escape") dismiss();
+                  if (e.key === "Enter") {
+                    e.stopPropagation();
+                    confirm();
+                  }
+                  // Esc is handled by global listener (collapseCapsule)
                 }}
-                placeholder="输入备忘..."
-                className="flex-1 bg-transparent text-[13px] text-white/90 placeholder-white/25
-                           outline-none border-none min-w-0"
-                style={{ caretColor: "#818cf8" }}
+                placeholder="输入备注... (Enter 保存, Esc 取消)"
+                className="flex-1 bg-white/[0.06] rounded-lg px-2.5 py-1.5 text-[13px] text-white/90 placeholder-white/25
+                           outline-none border border-white/[0.08] focus:border-orange-400/30 min-w-0"
+                style={{ caretColor: "#F97316" }}
               />
-
-              {/* Save */}
               <button
                 onClick={confirm}
                 disabled={saving}
-                className="h-7 px-3 rounded-full text-[12px] font-medium
-                           bg-indigo-500/20 hover:bg-indigo-500/35
-                           text-indigo-300 hover:text-indigo-200
-                           border border-indigo-400/15 hover:border-indigo-400/30
-                           transition-all duration-150 cursor-pointer flex-shrink-0
-                           flex items-center gap-1"
+                className="h-7 px-3 rounded-lg text-[12px] font-medium
+                           bg-orange-500/25 hover:bg-orange-500/40
+                           text-orange-300 hover:text-orange-200
+                           border border-orange-400/15 hover:border-orange-400/30
+                           transition-all duration-150 cursor-pointer flex-shrink-0"
               >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
                 {saving ? "..." : "保存"}
               </button>
-
-              {/* Dismiss */}
               <button
-                onClick={dismiss}
-                className="w-6 h-6 rounded-full flex items-center justify-center
+                onClick={collapseCapsule}
+                className="w-7 h-7 rounded-lg flex items-center justify-center
                            text-white/20 hover:text-red-400 hover:bg-red-500/15
                            transition-all duration-150 cursor-pointer flex-shrink-0"
               >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
           </div>
+        </div>
+      );
+    }
 
-          {/* Dismiss X on the circle (non-expanded only) */}
-          {!expanded && (
-            <button
-              onClick={(e) => { e.stopPropagation(); dismiss(); }}
-              className="absolute rounded-full bg-red-500/80 hover:bg-red-500
-                         flex items-center justify-center
-                         opacity-0 hover:opacity-100 transition-opacity duration-200
-                         shadow-lg cursor-pointer"
-              style={{
-                width: 16, height: 16,
-                top: 0,
-                right: isRight ? 0 : undefined,
-                left: isLeft ? CIRCLE_SIZE - 16 : undefined,
-              }}
-            >
-              <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    // Default circle state — BOTH countdown and confirmed layers always rendered.
+    // Only opacity changes on confirm — zero DOM add/remove = zero flash.
+    return (
+      <div
+        className="select-none"
+        style={{
+          width: CAPSULE_W,
+          height: CIRCLE_WIN_H,
+          background: "transparent",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: isRight ? "flex-end" : isLeft ? "flex-start" : "center",
+        }}
+      >
+        <div
+          className="relative"
+          onClick={confirmed ? undefined : expandToCapsule}
+          style={{
+            width: CIRCLE_SIZE,
+            height: CIRCLE_SIZE,
+            borderRadius: "50%",
+            background: confirmed ? "#16A34A" : "rgb(15, 15, 30)",
+            boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.1)",
+            cursor: confirmed ? "default" : "pointer",
+            transition: "background 0.3s ease",
+            overflow: "hidden",
+          }}
+        >
+          {/* Layer 1: Countdown content — fades out on confirm */}
+          <div
+            className="absolute inset-0 flex items-center justify-center"
+            style={{ opacity: confirmed ? 0 : 1, transition: "opacity 0.25s ease" }}
+          >
+            <div className="relative" style={{ width: 38, height: 38 }}>
+              <svg className="absolute inset-0 -rotate-90" width="38" height="38" viewBox="0 0 38 38">
+                <circle cx="19" cy="19" r="15" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
+                <circle
+                  cx="19" cy="19" r="15"
+                  fill="none" stroke="url(#cg)" strokeWidth="2" strokeLinecap="round"
+                  strokeDasharray={2 * Math.PI * 15}
+                  strokeDashoffset={2 * Math.PI * 15 * (1 - progress)}
+                  className="transition-all duration-1000 ease-linear"
+                />
+                <defs>
+                  <linearGradient id="cg" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#F97316" />
+                    <stop offset="100%" stopColor="#FDBA74" />
+                  </linearGradient>
+                </defs>
               </svg>
-            </button>
-          )}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-sm leading-none">{isImage ? "📷" : isUrl ? "🔗" : "📋"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Layer 2: Confirmed content — fades in on confirm */}
+          <div
+            className="absolute inset-0 flex items-center justify-center"
+            style={{ opacity: confirmed ? 1 : 0, transition: "opacity 0.25s ease" }}
+          >
+            {/* Checkmark with draw animation */}
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white"
+              strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+            >
+              <path
+                d="M5 13l4 4L19 7"
+                strokeDasharray="24"
+                strokeDashoffset={confirmed ? "0" : "24"}
+                style={{ transition: "stroke-dashoffset 0.4s ease 0.1s" }}
+              />
+            </svg>
+          </div>
+
+          {/* Dismiss X — always rendered, opacity controlled */}
+          <button
+            onClick={(e) => { e.stopPropagation(); dismiss(); }}
+            className={`absolute rounded-full bg-red-500/80 hover:bg-red-500
+                       flex items-center justify-center shadow-lg cursor-pointer
+                       ${confirmed ? "opacity-0 pointer-events-none" : "opacity-0 hover:opacity-100"}`}
+            style={{
+              width: 16, height: 16,
+              top: 0,
+              right: isRight ? 0 : undefined,
+              left: isLeft ? CIRCLE_SIZE - 16 : undefined,
+              transition: "opacity 0.2s ease",
+            }}
+          >
+            <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       </div>
     );
   }
 
   // ─── Bar Mode (full 340x72 bar) ───
-  const previewText = pending.content_type === "image"
+  const barPreview = isImage
     ? "截图 / 图片"
     : (pending.preview || pending.raw_text || "").length > 20
       ? (pending.preview || pending.raw_text || "").slice(0, 20) + "..."
       : (pending.preview || pending.raw_text || "");
 
-  const iconBg = pending.content_type === "image"
+  const iconBg = isImage
     ? "from-pink-500/20 to-rose-500/20"
-    : "from-indigo-500/20 to-violet-500/20";
-  const iconEmoji = pending.content_type === "image" ? "📷" : "📋";
+    : "from-orange-500/20 to-amber-500/20";
+  const iconEmoji = isImage ? "📷" : isUrl ? "🔗" : "📋";
+
+  // Bar mode: click executes default action
+  const barClick = confirmed ? undefined : (defaultAction === "save" ? confirm : dismiss);
 
   return (
     <div className="w-[340px] h-[72px] select-none" style={{ background: "transparent" }}>
       <div
         className="relative w-full h-full rounded-2xl overflow-hidden cursor-pointer group"
-        onClick={confirm}
+        onClick={barClick}
         style={{
-          background: "rgba(15, 15, 30, 0.75)",
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
-          boxShadow: [
+          background: confirmed ? "#16A34A" : "rgb(15, 15, 30)",
+          boxShadow: confirmed ? "none" : [
             "0 8px 32px rgba(0, 0, 0, 0.35)",
-            "0 2px 8px rgba(99, 102, 241, 0.15)",
+            "0 2px 8px rgba(249, 115, 22, 0.15)",
             "inset 0 1px 0 rgba(255, 255, 255, 0.08)",
             "inset 0 0 0 1px rgba(255, 255, 255, 0.06)",
           ].join(", "),
+          transition: "background 0.3s ease",
         }}
       >
         {/* Top shimmer */}
         <div className="absolute inset-x-0 top-0 h-[1px]" style={{
-          background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.15) 30%, rgba(139,92,246,0.3) 50%, rgba(255,255,255,0.15) 70%, transparent)",
+          background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.15) 30%, rgba(249,115,22,0.3) 50%, rgba(255,255,255,0.15) 70%, transparent)",
         }} />
 
         {/* Bottom progress */}
         <div className="absolute inset-x-0 bottom-0 h-[2px] bg-white/[0.03]">
           <div className="h-full transition-all duration-1000 ease-linear" style={{
             width: `${progress * 100}%`,
-            background: "linear-gradient(90deg, #818cf8, #a78bfa, #c084fc)",
+            background: "linear-gradient(90deg, #F97316, #FB923C, #FDBA74)",
           }} />
         </div>
 
-        <div className="relative flex items-center gap-3 h-full px-4">
-          {/* Icon + ring */}
+        {/* Layer 1: Bar countdown content — fades out on confirm */}
+        <div className="relative flex items-center gap-3 h-full px-4"
+          style={{ opacity: confirmed ? 0 : 1, transition: "opacity 0.25s ease" }}>
           <div className="relative w-10 h-10 flex-shrink-0">
             <svg className="absolute inset-0 w-10 h-10 -rotate-90" viewBox="0 0 40 40">
               <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
@@ -353,9 +534,9 @@ export default function BubbleView() {
                 className="transition-all duration-1000 ease-linear" />
               <defs>
                 <linearGradient id="bar-grad" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#818cf8" />
-                  <stop offset="50%" stopColor="#a78bfa" />
-                  <stop offset="100%" stopColor="#c084fc" />
+                  <stop offset="0%" stopColor="#F97316" />
+                  <stop offset="50%" stopColor="#FB923C" />
+                  <stop offset="100%" stopColor="#FDBA74" />
                 </linearGradient>
               </defs>
             </svg>
@@ -363,24 +544,20 @@ export default function BubbleView() {
               <span className="text-sm">{iconEmoji}</span>
             </div>
           </div>
-
-          {/* Text */}
           <div className="flex flex-col min-w-0 flex-1 gap-0.5">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-medium text-white/30 uppercase tracking-wider">{pending.source_app}</span>
               <span className="w-[3px] h-[3px] rounded-full bg-white/15" />
-              <span className="text-[10px] text-indigo-400/70">{countdown}s</span>
+              <span className="text-[10px] text-orange-400/70">{barActionHint}</span>
             </div>
             <span className="text-[13px] font-medium text-white/85 leading-snug truncate">
-              {saving ? "保存中..." : previewText}
+              {saving ? "保存中..." : barPreview}
             </span>
           </div>
-
-          {/* Actions */}
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <button onClick={(e) => { e.stopPropagation(); confirm(); }} disabled={saving}
-              className="w-8 h-8 rounded-xl flex items-center justify-center bg-indigo-500/15 hover:bg-indigo-500/30 border border-indigo-400/10 hover:border-indigo-400/25 transition-all duration-200 cursor-pointer">
-              <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              className="w-8 h-8 rounded-xl flex items-center justify-center bg-orange-500/15 hover:bg-orange-500/30 border border-orange-400/10 hover:border-orange-400/25 transition-all duration-200 cursor-pointer">
+              <svg className="w-3.5 h-3.5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
             </button>
@@ -391,6 +568,18 @@ export default function BubbleView() {
               </svg>
             </button>
           </div>
+        </div>
+        {/* Layer 2: Bar confirmed content — fades in on confirm */}
+        <div className="absolute inset-0 flex items-center justify-center gap-2"
+          style={{ opacity: confirmed ? 1 : 0, transition: "opacity 0.25s ease" }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 13l4 4L19 7"
+              strokeDasharray="24"
+              strokeDashoffset={confirmed ? "0" : "24"}
+              style={{ transition: "stroke-dashoffset 0.4s ease 0.1s" }}
+            />
+          </svg>
+          <span className="text-[14px] font-semibold text-white">已保存</span>
         </div>
       </div>
     </div>

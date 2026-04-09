@@ -1,19 +1,19 @@
 mod ai;
 mod capture;
 mod commands;
+mod export;
 mod scheduler;
 mod storage;
 
-use commands::capture::AppState;
 use capture::detector::CaptureDetector;
+use commands::capture::AppState;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let db = Arc::new(
-        storage::database::Database::new().expect("Failed to initialize database"),
-    );
+    let db = Arc::new(storage::database::Database::new().expect("Failed to initialize database"));
 
     let detector = CaptureDetector::new();
 
@@ -22,7 +22,9 @@ pub fn run() {
             tauri_plugin_log::Builder::default()
                 .level(log::LevelFilter::Info)
                 .targets([
-                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir { file_name: Some("xiaoyun".into()) }),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: Some("xiaoyun".into()),
+                    }),
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
                 ])
                 .build(),
@@ -53,6 +55,7 @@ pub fn run() {
         .manage(AppState {
             db,
             pending_capture: std::sync::Arc::new(std::sync::Mutex::new(None)),
+            suppress_reopen_until: std::sync::Arc::new(std::sync::Mutex::new(None)),
         })
         .setup(move |app| {
             eprintln!("[xiaoyun] App setup started");
@@ -71,8 +74,22 @@ pub fn run() {
                 // This is more reliable than JS onFocusChanged which can stop
                 // firing after repeated show/hide cycles.
                 let win_clone = spotlight_win.clone();
+                let app_handle = app.handle().clone();
                 spotlight_win.on_window_event(move |event| {
                     if let tauri::WindowEvent::Focused(false) = event {
+                        suppress_reopen(&app_handle, Duration::from_secs(2));
+                        let _ = win_clone.hide();
+                    }
+                });
+            }
+
+            // --- Intercept window close: hide instead of destroy ---
+            if let Some(main_win) = app.get_webview_window("main") {
+                let win_clone = main_win.clone();
+                main_win.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        // Prevent actual close, just hide the window
+                        api.prevent_close();
                         let _ = win_clone.hide();
                     }
                 });
@@ -94,8 +111,11 @@ pub fn run() {
             commands::capture::confirm_capture,
             commands::capture::dismiss_capture,
             commands::capture::get_pending_capture,
+            commands::capture::debug_log,
             commands::capture::retry_url_fetch,
             commands::capture::ocr_image,
+            commands::capture::get_contents_by_ids,
+            commands::capture::test_ai_connection,
             commands::storage::get_all_content,
             commands::storage::delete_content,
             commands::report::generate_report,
@@ -105,17 +125,67 @@ pub fn run() {
             commands::preferences::get_settings,
             commands::preferences::update_setting,
             commands::preferences::check_xreader_status,
-            commands::chat::chat_with_content,
-            commands::chat::get_chat_history,
-            commands::chat::save_chat_message,
-            commands::chat::clear_chat_history,
+            commands::digest::get_digest_items,
+            commands::digest::digest_item,
+            commands::mcp::get_mcp_status,
+            commands::mcp::connect_mcp,
+            commands::mcp::disconnect_mcp,
+            commands::mcp::copy_content_summary,
+            commands::datahub::search_content,
+            commands::datahub::get_dates_with_content,
+            commands::datahub::get_content_for_date,
+            commands::datahub::export_day_markdown,
+            commands::datahub::export_all_markdown,
+            commands::datahub::export_date_range_markdown,
+            commands::datahub::get_export_dir,
+            commands::datahub::set_export_dir,
+            commands::datahub::open_export_dir,
+            commands::datahub::get_storage_info,
+            commands::datahub::export_all_single,
+            commands::datahub::export_range_single,
+            commands::datahub::open_data_folder,
+            commands::attention::get_attention_insights,
+            commands::attention::trigger_attention_analysis,
+            commands::oauth::start_openai_oauth,
+            commands::oauth::get_openai_oauth_status,
+            commands::oauth::logout_openai_oauth,
+            commands::oauth::start_gemini_oauth,
+            commands::oauth::get_gemini_oauth_status,
+            commands::oauth::logout_gemini_oauth,
+            commands::wiki::get_wiki_pages,
+            commands::wiki::get_wiki_page,
+            commands::wiki::search_wiki,
+            commands::wiki::get_wiki_stats,
+            commands::wiki::delete_wiki_page,
+            commands::wiki::get_wiki_graph,
+            commands::wiki::compile_content_to_wiki,
+            commands::wiki::trigger_wiki_auto_compile,
+            commands::wiki::wiki_ask,
+            commands::wiki::get_chat_sessions,
+            commands::wiki::get_chat_messages,
+            commands::wiki::delete_chat_session,
+            commands::wiki::save_message_as_page,
+            commands::wiki::get_saved_message_ids,
+            commands::wiki::get_wiki_conversations,
+            commands::wiki::wiki_link_by_tags,
+            commands::wiki::trigger_wiki_lint,
+            commands::wiki::get_wiki_lint_results,
+            commands::wiki::wiki_lint_keep,
+            commands::wiki::wiki_lint_delete,
+            commands::wiki::wiki_lint_recompile,
+            commands::wiki::get_page_sources,
+            commands::wiki::get_content_wiki_pages,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
-            // Handle Dock icon click on macOS: show main window
-            if let tauri::RunEvent::Reopen { has_visible_windows, .. } = event {
-                if !has_visible_windows {
+            // Handle Dock icon click on macOS: show main window only if it's hidden.
+            // When bubble closes, macOS fires Reopen because no visible windows remain.
+            // We only respond if the main window is actually hidden (user closed it),
+            // not when it's just behind other windows.
+            if let tauri::RunEvent::Reopen { .. } = event {
+                // Skip if within suppress window (bubble just closed)
+                if !is_reopen_suppressed(app) {
                     show_main_window(app, None);
                 }
             }
@@ -205,11 +275,8 @@ fn save_clipboard_image(img: &arboard::ImageData) -> Option<String> {
     let id = uuid::Uuid::new_v4().to_string();
     let file_path = captures_dir.join(format!("{}.png", id));
 
-    let rgba_buf = image::RgbaImage::from_raw(
-        img.width as u32,
-        img.height as u32,
-        img.bytes.to_vec(),
-    )?;
+    let rgba_buf =
+        image::RgbaImage::from_raw(img.width as u32, img.height as u32, img.bytes.to_vec())?;
 
     if rgba_buf.save(&file_path).is_ok() {
         Some(file_path.to_string_lossy().to_string())
@@ -235,11 +302,38 @@ fn detect_frontmost_app() -> String {
     }
 }
 
+fn suppress_reopen(app: &tauri::AppHandle, duration: Duration) {
+    let suppress_arc = app.state::<AppState>().suppress_reopen_until.clone();
+    if let Ok(mut guard) = suppress_arc.lock() {
+        *guard = Some(Instant::now() + duration);
+    };
+}
+
+fn is_reopen_suppressed(app: &tauri::AppHandle) -> bool {
+    let suppress_arc = app.state::<AppState>().suppress_reopen_until.clone();
+    let Ok(mut guard) = suppress_arc.lock() else {
+        return false;
+    };
+
+    match *guard {
+        Some(until) if until > Instant::now() => true,
+        Some(_) => {
+            *guard = None;
+            false
+        }
+        None => false,
+    }
+}
+
+fn should_show_main_on_reopen(main_hidden: bool, reopen_suppressed: bool) -> bool {
+    main_hidden && !reopen_suppressed
+}
+
 fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     use tauri::menu::{Menu, MenuItem};
     use tauri::tray::TrayIconBuilder;
 
-    let show = MenuItem::with_id(app, "show", "打开小云", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "打开 OpenWiki", true, None::<&str>)?;
     let report = MenuItem::with_id(app, "report", "生成周报", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
 
@@ -247,22 +341,20 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     TrayIconBuilder::new()
         .icon(app.default_window_icon().unwrap().clone())
-        .tooltip("小云 — 智能信息助手")
+        .tooltip("OpenWiki — 智能知识管理")
         .menu(&menu)
         .show_menu_on_left_click(true)
-        .on_menu_event(|app, event| {
-            match event.id.as_ref() {
-                "show" => {
-                    show_main_window(app, None);
-                }
-                "report" => {
-                    show_main_window(app, Some("report"));
-                }
-                "quit" => {
-                    app.exit(0);
-                }
-                _ => {}
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "show" => {
+                show_main_window(app, None);
             }
+            "report" => {
+                show_main_window(app, Some("report"));
+            }
+            "quit" => {
+                app.exit(0);
+            }
+            _ => {}
         })
         .build(app)?;
 
@@ -278,5 +370,25 @@ fn show_main_window(app: &tauri::AppHandle, tab: Option<&str>) {
         if let Some(tab) = tab {
             let _ = app.emit("navigate-tab", tab);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_show_main_on_reopen;
+
+    #[test]
+    fn reopen_shows_main_when_hidden_and_not_suppressed() {
+        assert!(should_show_main_on_reopen(true, false));
+    }
+
+    #[test]
+    fn reopen_does_not_show_main_when_suppressed() {
+        assert!(!should_show_main_on_reopen(true, true));
+    }
+
+    #[test]
+    fn reopen_does_not_show_main_when_already_visible() {
+        assert!(!should_show_main_on_reopen(false, false));
     }
 }

@@ -15,12 +15,16 @@ fn ensure_compiled() -> Result<(), String> {
     let binary_path = get_ocr_binary_path();
     let script_path = std::env::temp_dir().join("xiaoyun_ocr.swift");
 
-    // If binary already exists and is recent, skip compilation
-    if binary_path.exists() {
+    // Check if binary exists and matches current version
+    // We embed a version marker in the script to detect changes
+    let version_marker = "xiaoyun_ocr_v3_tiled";
+    let version_file = std::env::temp_dir().join("xiaoyun_ocr_version");
+    let current_version = std::fs::read_to_string(&version_file).unwrap_or_default();
+
+    if binary_path.exists() && current_version.trim() == version_marker {
         if let Ok(meta) = std::fs::metadata(&binary_path) {
             if let Ok(modified) = meta.modified() {
                 if modified.elapsed().unwrap_or_default().as_secs() < 86400 {
-                    // Binary is less than 24 hours old, reuse it
                     return Ok(());
                 }
             }
@@ -30,6 +34,7 @@ fn ensure_compiled() -> Result<(), String> {
     let swift_code = r#"
 import Vision
 import Foundation
+import CoreGraphics
 
 let args = CommandLine.arguments
 guard args.count > 1 else {
@@ -45,37 +50,71 @@ guard let imageSource = CGImageSourceCreateWithURL(imageURL as CFURL, nil),
     exit(1)
 }
 
-let semaphore = DispatchSemaphore(value: 0)
-var resultText = ""
+/// OCR a single CGImage tile and return recognized lines
+func ocrTile(_ tile: CGImage) -> [String] {
+    let semaphore = DispatchSemaphore(value: 0)
+    var lines: [String] = []
 
-let request = VNRecognizeTextRequest { request, error in
-    if let error = error {
-        fputs("OCR error: \(error.localizedDescription)\n", stderr)
+    let request = VNRecognizeTextRequest { request, error in
+        if let observations = request.results as? [VNRecognizedTextObservation] {
+            lines = observations.compactMap { $0.topCandidates(1).first?.string }
+        }
         semaphore.signal()
-        return
     }
-    guard let observations = request.results as? [VNRecognizedTextObservation] else {
+    request.recognitionLevel = .accurate
+    request.recognitionLanguages = ["zh-Hans", "zh-Hant", "en-US"]
+    request.usesLanguageCorrection = true
+
+    let handler = VNImageRequestHandler(cgImage: tile, options: [:])
+    do {
+        try handler.perform([request])
+    } catch {
+        fputs("Vision error: \(error.localizedDescription)\n", stderr)
         semaphore.signal()
-        return
     }
-    let lines = observations.compactMap { $0.topCandidates(1).first?.string }
-    resultText = lines.joined(separator: "\n")
-    semaphore.signal()
+    semaphore.wait()
+    return lines
 }
 
-request.recognitionLevel = .accurate
-request.recognitionLanguages = ["zh-Hans", "zh-Hant", "en-US"]
-request.usesLanguageCorrection = true
+let width = cgImage.width
+let height = cgImage.height
+let maxTileHeight = 2000  // Split images taller than 2000px into tiles
 
-let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-do {
-    try handler.perform([request])
-} catch {
-    fputs("Vision error: \(error.localizedDescription)\n", stderr)
-    exit(1)
+var allLines: [String] = []
+
+if height <= maxTileHeight {
+    // Small image: OCR directly
+    allLines = ocrTile(cgImage)
+} else {
+    // Long image: split into overlapping tiles for better accuracy
+    let overlap = 100  // Overlap to avoid cutting text at boundaries
+    var y = 0
+    while y < height {
+        let tileH = min(maxTileHeight, height - y)
+        let rect = CGRect(x: 0, y: y, width: width, height: tileH)
+        if let tile = cgImage.cropping(to: rect) {
+            let tileLines = ocrTile(tile)
+            // Deduplicate: skip lines that match the last line from previous tile (overlap region)
+            if !allLines.isEmpty && !tileLines.isEmpty {
+                // Find where overlap starts — skip duplicate lines
+                var startIdx = 0
+                for i in 0..<min(5, tileLines.count) {
+                    if allLines.last == tileLines[i] {
+                        startIdx = i + 1
+                        break
+                    }
+                }
+                allLines.append(contentsOf: tileLines[startIdx...])
+            } else {
+                allLines.append(contentsOf: tileLines)
+            }
+        }
+        y += tileH - overlap
+        if tileH < maxTileHeight { break }
+    }
 }
 
-semaphore.wait()
+let resultText = allLines.joined(separator: "\n")
 print(resultText)
 "#;
 
@@ -87,7 +126,7 @@ print(resultText)
     log::info!("[OCR] Compiling Swift OCR tool...");
     let output = Command::new("/usr/bin/swiftc")
         .args([
-            "-O",  // optimize
+            "-O", // optimize
             script_path.to_str().unwrap(),
             "-o",
             binary_path.to_str().unwrap(),
@@ -100,7 +139,12 @@ print(resultText)
         return Err(format!("OCR compile failed: {}", stderr.trim()));
     }
 
-    log::info!("[OCR] Swift OCR tool compiled successfully");
+    // Write version marker so we know the binary matches current code
+    let _ = std::fs::write(&version_file, version_marker);
+    log::info!(
+        "[OCR] Swift OCR tool compiled successfully ({})",
+        version_marker
+    );
     Ok(())
 }
 

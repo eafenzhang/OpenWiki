@@ -15,30 +15,28 @@ pub async fn generate_report(state: State<'_, AppState>) -> Result<WeeklyReport,
     let repo = Repository::new(db.clone());
 
     // Read AI settings from the database
+    let provider = repo
+        .get_setting("ai_provider")
+        .map_err(|e| format!("读取 AI 提供商失败: {}", e))?
+        .unwrap_or_else(|| "anthropic".to_string());
+
     let api_key = repo
-        .get_setting("ai_api_key")
-        .map_err(|e| format!("读取 API Key 失败: {}", e))?
+        .get_setting(&format!("ai_api_key_{}", provider))
+        .ok()
+        .flatten()
+        .or_else(|| repo.get_setting("ai_api_key").ok().flatten())
         .unwrap_or_default();
 
     if api_key.is_empty() {
         return Err("请先在设置中配置 AI API Key".to_string());
     }
 
-    let provider = repo
-        .get_setting("ai_provider")
-        .map_err(|e| format!("读取 AI 提供商失败: {}", e))?
-        .unwrap_or_else(|| "anthropic".to_string());
-
     let model = repo
         .get_setting("ai_model")
         .map_err(|e| format!("读取 AI 模型失败: {}", e))?
         .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
 
-    log::info!(
-        "生成周报: provider={}, model={}",
-        provider,
-        model
-    );
+    log::info!("生成周报: provider={}, model={}", provider, model);
 
     // Generate the report (async)
     let report = report_generator::generate_weekly_report(db, &api_key, &provider, &model).await?;
@@ -92,7 +90,10 @@ pub fn submit_feedback(
 
     // If the user marked content as interested/bookmarked, update preferences
     if let Some(cid) = content_id {
-        if feedback_type == "interested" || feedback_type == "bookmarked" || feedback_type == "dismissed" {
+        if feedback_type == "interested"
+            || feedback_type == "bookmarked"
+            || feedback_type == "dismissed"
+        {
             if let Err(e) = preference_engine::update_preferences(db, &cid, &feedback_type) {
                 log::error!("更新用户偏好失败: {}", e);
                 // Don't fail the whole command for preference update errors

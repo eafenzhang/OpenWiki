@@ -1,5 +1,12 @@
+pub mod attention_analyzer;
 pub mod client;
+pub mod codex_api;
 pub mod content_filter;
+pub mod gemini_api;
+pub mod gemini_oauth;
+pub mod oauth;
 pub mod preference_engine;
 pub mod prompts;
 pub mod report_generator;
+pub mod wiki_engine;
+pub mod wiki_prompts;

@@ -4,7 +4,8 @@
   "description": "enables the default permissions",
   "windows": [
     "main",
-    "spotlight"
+    "spotlight",
+    "bubble"
   ],
   "permissions": [
     "core:default",
@@ -14,11 +15,17 @@
     "core:window:allow-close",
     "core:window:allow-hide",
     "core:window:allow-start-dragging",
+    "core:window:allow-set-size",
+    "core:window:allow-set-position",
     "core:window:allow-create",
+    "core:window:allow-inner-size",
+    "core:window:allow-scale-factor",
     "core:event:default",
     "process:allow-exit",
     "fs:default",
     "fs:allow-read",
-    "shell:allow-open"
+    "shell:allow-open",
+    "clipboard-manager:allow-write-text",
+    "clipboard-manager:allow-read-text"
   ]
 }
