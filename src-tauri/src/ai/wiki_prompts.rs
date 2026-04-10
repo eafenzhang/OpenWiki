@@ -1,8 +1,31 @@
 /// Prompt templates for wiki knowledge base operations.
 
 /// System prompt for assessing whether content has knowledge value.
-pub fn assessment_system_prompt() -> String {
-    r#"你是「OpenWiki」知识库的守门人。你的任务是判断一条捕获的内容是否包含值得长期保存的知识。
+pub fn assessment_system_prompt(locale: &str) -> String {
+    if crate::locale::is_english(locale) {
+        r#"You are the gatekeeper of the "OpenWiki" knowledge base. Your task is to decide whether a captured piece of content contains knowledge worth preserving long-term.
+
+## Worth adding:
+- Concrete concepts, methodologies, or framework explanations
+- Important information about people, companies, or products
+- Technical principles, architecture decisions, implementation details
+- In-depth opinions, analyses, or comparisons
+- Tutorials, guides, best practices
+- Data, statistics, research findings
+- The user attached a note (user_note), indicating they consider this content important
+
+## Not worth adding:
+- Pure chitchat or emotional expression
+- Ephemeral information (weather, tracking numbers, verification codes)
+- Fragments too short and lacking context (under 10 words with no user_note)
+- Raw code snippets with no explanatory context
+- Duplicate content or ads
+
+## Output format (pure JSON, no markdown code blocks):
+{"should_compile":true,"knowledge_score":0.75,"reason":"Brief reason (under 30 words)"}"#
+            .to_string()
+    } else {
+        r#"你是「OpenWiki」知识库的守门人。你的任务是判断一条捕获的内容是否包含值得长期保存的知识。
 
 ## 判断标准（值得入库的）：
 - 具体的概念、方法论、框架解释
@@ -22,7 +45,8 @@ pub fn assessment_system_prompt() -> String {
 
 ## 输出格式（纯 JSON，不要 markdown 代码块）：
 {"should_compile":true,"knowledge_score":0.75,"reason":"简短判断理由（20字以内）"}"#
-        .to_string()
+            .to_string()
+    }
 }
 
 /// User message for assessment.
@@ -33,30 +57,75 @@ pub fn assessment_user_message(
     user_note: &str,
     source_url: &str,
     source_app: &str,
+    locale: &str,
 ) -> String {
     let mut parts = Vec::new();
-    parts.push(format!("内容类型: {}", content_type));
-    parts.push(format!("来源应用: {}", source_app));
-    if !source_url.is_empty() {
-        parts.push(format!("来源URL: {}", source_url));
-    }
-    if !user_note.is_empty() {
-        parts.push(format!("用户备注: {}", user_note));
-    }
-    if !summary.is_empty() {
-        parts.push(format!("AI摘要: {}", summary));
-    }
-    if !raw_text.is_empty() {
-        let truncated: String = raw_text.chars().take(2000).collect();
-        parts.push(format!("原文（前2000字）:\n{}", truncated));
+    if crate::locale::is_english(locale) {
+        parts.push(format!("Content type: {}", content_type));
+        parts.push(format!("Source app: {}", source_app));
+        if !source_url.is_empty() {
+            parts.push(format!("Source URL: {}", source_url));
+        }
+        if !user_note.is_empty() {
+            parts.push(format!("User note: {}", user_note));
+        }
+        if !summary.is_empty() {
+            parts.push(format!("AI summary: {}", summary));
+        }
+        if !raw_text.is_empty() {
+            let truncated: String = raw_text.chars().take(2000).collect();
+            parts.push(format!("Original text (first 2000 chars):\n{}", truncated));
+        }
+    } else {
+        parts.push(format!("内容类型: {}", content_type));
+        parts.push(format!("来源应用: {}", source_app));
+        if !source_url.is_empty() {
+            parts.push(format!("来源URL: {}", source_url));
+        }
+        if !user_note.is_empty() {
+            parts.push(format!("用户备注: {}", user_note));
+        }
+        if !summary.is_empty() {
+            parts.push(format!("AI摘要: {}", summary));
+        }
+        if !raw_text.is_empty() {
+            let truncated: String = raw_text.chars().take(2000).collect();
+            parts.push(format!("原文（前2000字）:\n{}", truncated));
+        }
     }
     parts.join("\n\n")
 }
 
 /// System prompt for the discovery stage of compilation (Stage 1).
 /// Given new content + existing page index, decide which pages to create/update.
-pub fn compile_discover_system_prompt() -> String {
-    r#"你是「OpenWiki」知识库的编辑。你的任务是分析一条新内容，决定需要创建或更新哪些知识页面。
+pub fn compile_discover_system_prompt(locale: &str) -> String {
+    if crate::locale::is_english(locale) {
+        r#"You are the editor of the "OpenWiki" knowledge base. Your task is to analyze a new piece of content and decide which knowledge pages need to be created or updated.
+
+## Page types:
+- concept: Concepts, methodologies, technical principles (e.g. "RAG", "Intermittent Fasting")
+- entity: People, companies, products, projects (e.g. "Karpathy", "OpenAI")
+- source: Structured notes on an information source (an article, a book)
+- comparison: Comparative analysis (A vs B)
+- overview: Domain surveys, topic summaries
+
+## Core principles:
+- Prefer updating existing pages — only create new ones when truly needed
+- A single piece of content typically touches 1-5 pages
+- Do not create pages for trivial information
+
+## Output format (pure JSON, no markdown code blocks):
+{
+  "creates": [
+    {"title":"Page title","page_type":"concept","reason":"Why a new page is needed"}
+  ],
+  "updates": [
+    {"page_id":"Existing page ID","title":"Page title","reason":"Why it needs updating"}
+  ]
+}"#
+        .to_string()
+    } else {
+        r#"你是「OpenWiki」知识库的编辑。你的任务是分析一条新内容，决定需要创建或更新哪些知识页面。
 
 ## 页面类型：
 - concept: 概念、方法论、技术原理（如"RAG技术"、"间歇性断食"）
@@ -79,7 +148,8 @@ pub fn compile_discover_system_prompt() -> String {
     {"page_id":"已有页面ID","title":"页面标题","reason":"为什么需要更新"}
   ]
 }"#
-    .to_string()
+        .to_string()
+    }
 }
 
 /// User message for the discovery stage.
@@ -89,35 +159,63 @@ pub fn compile_discover_user_message(
     content_tags: &str,
     user_note: &str,
     existing_pages: &[(String, String, String)], // (id, title, summary)
+    locale: &str,
 ) -> String {
     let mut parts = Vec::new();
 
-    // New content
-    parts.push("=== 新内容 ===".to_string());
-    if !content_summary.is_empty() {
-        parts.push(format!("摘要: {}", content_summary));
-    }
-    if !content_tags.is_empty() {
-        parts.push(format!("标签: {}", content_tags));
-    }
-    if !user_note.is_empty() {
-        parts.push(format!("用户备注: {}", user_note));
-    }
-    let truncated: String = content_text.chars().take(3000).collect();
-    parts.push(format!("全文:\n{}", truncated));
+    if crate::locale::is_english(locale) {
+        parts.push("=== New Content ===".to_string());
+        if !content_summary.is_empty() {
+            parts.push(format!("Summary: {}", content_summary));
+        }
+        if !content_tags.is_empty() {
+            parts.push(format!("Tags: {}", content_tags));
+        }
+        if !user_note.is_empty() {
+            parts.push(format!("User note: {}", user_note));
+        }
+        let truncated: String = content_text.chars().take(3000).collect();
+        parts.push(format!("Full text:\n{}", truncated));
 
-    // Existing pages index
-    parts.push("\n=== 现有知识页面索引 ===".to_string());
-    if existing_pages.is_empty() {
-        parts.push("（知识库为空，这是第一条内容）".to_string());
+        parts.push("\n=== Existing Knowledge Page Index ===".to_string());
+        if existing_pages.is_empty() {
+            parts.push("(Knowledge base is empty — this is the first piece of content)".to_string());
+        } else {
+            for (id, title, summary) in existing_pages {
+                let s = if summary.is_empty() {
+                    format!("[{}] {}", id, title)
+                } else {
+                    format!("[{}] {} — {}", id, title, summary)
+                };
+                parts.push(s);
+            }
+        }
     } else {
-        for (id, title, summary) in existing_pages {
-            let s = if summary.is_empty() {
-                format!("[{}] {}", id, title)
-            } else {
-                format!("[{}] {} — {}", id, title, summary)
-            };
-            parts.push(s);
+        parts.push("=== 新内容 ===".to_string());
+        if !content_summary.is_empty() {
+            parts.push(format!("摘要: {}", content_summary));
+        }
+        if !content_tags.is_empty() {
+            parts.push(format!("标签: {}", content_tags));
+        }
+        if !user_note.is_empty() {
+            parts.push(format!("用户备注: {}", user_note));
+        }
+        let truncated: String = content_text.chars().take(3000).collect();
+        parts.push(format!("全文:\n{}", truncated));
+
+        parts.push("\n=== 现有知识页面索引 ===".to_string());
+        if existing_pages.is_empty() {
+            parts.push("（知识库为空，这是第一条内容）".to_string());
+        } else {
+            for (id, title, summary) in existing_pages {
+                let s = if summary.is_empty() {
+                    format!("[{}] {}", id, title)
+                } else {
+                    format!("[{}] {} — {}", id, title, summary)
+                };
+                parts.push(s);
+            }
         }
     }
 
@@ -126,8 +224,32 @@ pub fn compile_discover_user_message(
 
 /// System prompt for the execute stage of compilation (Stage 2).
 /// Generate or update a single wiki page with full context.
-pub fn compile_execute_system_prompt() -> String {
-    r##"你是「OpenWiki」知识库的编辑。你的任务是基于新内容来创建或更新一个知识页面。
+pub fn compile_execute_system_prompt(locale: &str) -> String {
+    if crate::locale::is_english(locale) {
+        r##"You are the editor of the "OpenWiki" knowledge base. Your task is to create or update a knowledge page based on new content.
+
+## Core principles:
+- You are an editor, not an author — all knowledge must come from the provided content; do not invent information
+- When updating an existing page, preserve still-valid content and integrate the new information
+- When updating, aggregate multiple sources — do not reflect only the latest item; synthesize all sources
+- Write in English; keep proper nouns in their original language
+- Use Markdown with clear structure (headings, lists, bold for emphasis)
+- Pages should be self-contained — readers should not need to see the original content
+
+## Output format (pure JSON, no markdown code blocks):
+{
+  "title": "Page title",
+  "page_type": "concept",
+  "body_markdown": "Full page content in Markdown",
+  "summary": "One-sentence summary, under 20 words",
+  "tags": ["tag1", "tag2"],
+  "edges": [
+    {"target_title": "Related page title", "relation": "related"}
+  ]
+}"##
+        .to_string()
+    } else {
+        r##"你是「OpenWiki」知识库的编辑。你的任务是基于新内容来创建或更新一个知识页面。
 
 ## 核心原则：
 - 你是编辑，不是作者——所有知识必须来源于提供的内容，不要发明信息
@@ -148,7 +270,8 @@ pub fn compile_execute_system_prompt() -> String {
     {"target_title": "相关页面标题", "relation": "related"}
   ]
 }"##
-    .to_string()
+        .to_string()
+    }
 }
 
 /// User message for execute stage — creating a new page.
@@ -158,21 +281,38 @@ pub fn compile_execute_create_message(
     user_note: &str,
     title: &str,
     page_type: &str,
+    locale: &str,
 ) -> String {
     let truncated: String = content_text.chars().take(4000).collect();
-    let mut parts = vec![
-        format!("操作: 创建新页面"),
-        format!("标题: {}", title),
-        format!("类型: {}", page_type),
-    ];
-    if !content_summary.is_empty() {
-        parts.push(format!("内容摘要: {}", content_summary));
+    if crate::locale::is_english(locale) {
+        let mut parts = vec![
+            format!("Action: Create new page"),
+            format!("Title: {}", title),
+            format!("Type: {}", page_type),
+        ];
+        if !content_summary.is_empty() {
+            parts.push(format!("Content summary: {}", content_summary));
+        }
+        if !user_note.is_empty() {
+            parts.push(format!("User note: {}", user_note));
+        }
+        parts.push(format!("\nOriginal text:\n{}", truncated));
+        parts.join("\n")
+    } else {
+        let mut parts = vec![
+            format!("操作: 创建新页面"),
+            format!("标题: {}", title),
+            format!("类型: {}", page_type),
+        ];
+        if !content_summary.is_empty() {
+            parts.push(format!("内容摘要: {}", content_summary));
+        }
+        if !user_note.is_empty() {
+            parts.push(format!("用户备注: {}", user_note));
+        }
+        parts.push(format!("\n原文:\n{}", truncated));
+        parts.join("\n")
     }
-    if !user_note.is_empty() {
-        parts.push(format!("用户备注: {}", user_note));
-    }
-    parts.push(format!("\n原文:\n{}", truncated));
-    parts.join("\n")
 }
 
 /// User message for execute stage — updating an existing page.
@@ -184,28 +324,59 @@ pub fn compile_execute_update_message(
     existing_title: &str,
     active_source_count: usize,
     stale_source_count: usize,
+    locale: &str,
 ) -> String {
     let content_truncated: String = content_text.chars().take(3000).collect();
     let body_truncated: String = existing_body.chars().take(4000).collect();
-    let mut parts = vec![
-        format!("操作: 更新已有页面「{}」", existing_title),
-        format!("当前来源状态: {} 个活跃来源, {} 个过时来源", active_source_count, stale_source_count),
-    ];
-    if !content_summary.is_empty() {
-        parts.push(format!("新内容摘要: {}", content_summary));
+    if crate::locale::is_english(locale) {
+        let mut parts = vec![
+            format!("Action: Update existing page \"{}\"", existing_title),
+            format!("Current source status: {} active sources, {} stale sources", active_source_count, stale_source_count),
+        ];
+        if !content_summary.is_empty() {
+            parts.push(format!("New content summary: {}", content_summary));
+        }
+        if !user_note.is_empty() {
+            parts.push(format!("User note: {}", user_note));
+        }
+        parts.push(format!("\nNew content original text:\n{}", content_truncated));
+        parts.push(format!("\nCurrent page body:\n{}", body_truncated));
+        parts.push("\nUpdate the page with the new content, preserving still-valid existing information.".to_string());
+        parts.join("\n")
+    } else {
+        let mut parts = vec![
+            format!("操作: 更新已有页面「{}」", existing_title),
+            format!("当前来源状态: {} 个活跃来源, {} 个过时来源", active_source_count, stale_source_count),
+        ];
+        if !content_summary.is_empty() {
+            parts.push(format!("新内容摘要: {}", content_summary));
+        }
+        if !user_note.is_empty() {
+            parts.push(format!("用户备注: {}", user_note));
+        }
+        parts.push(format!("\n新内容原文:\n{}", content_truncated));
+        parts.push(format!("\n当前页面正文:\n{}", body_truncated));
+        parts.push("\n请基于新内容更新页面，保留已有内容中仍然有效的部分。".to_string());
+        parts.join("\n")
     }
-    if !user_note.is_empty() {
-        parts.push(format!("用户备注: {}", user_note));
-    }
-    parts.push(format!("\n新内容原文:\n{}", content_truncated));
-    parts.push(format!("\n当前页面正文:\n{}", body_truncated));
-    parts.push("\n请基于新内容更新页面，保留已有内容中仍然有效的部分。".to_string());
-    parts.join("\n")
 }
 
 /// System prompt for Q&A stage 1: retrieve relevant page IDs from index.
-pub fn query_retrieve_system_prompt() -> String {
-    r#"你是「OpenWiki」知识库的检索助手。用户提出一个问题，你需要从知识库页面索引中找出相关的页面。
+pub fn query_retrieve_system_prompt(locale: &str) -> String {
+    if crate::locale::is_english(locale) {
+        r#"You are the retrieval assistant for the "OpenWiki" knowledge base. The user asks a question and you need to find relevant pages from the page index.
+
+## Task:
+- From the page index below, identify pages relevant to the question
+- Understand semantic relationships — don't just match keywords (e.g. "Buffett's investment philosophy" should match "First principles of investing")
+- Return at most 5 of the most relevant page IDs
+- If no pages are relevant, return an empty array
+
+## Output format (pure JSON, no markdown code blocks):
+{"page_ids": ["id1", "id2"]}"#
+            .to_string()
+    } else {
+        r#"你是「OpenWiki」知识库的检索助手。用户提出一个问题，你需要从知识库页面索引中找出相关的页面。
 
 ## 任务：
 - 从下方的页面索引中，找出与问题相关的页面
@@ -215,7 +386,8 @@ pub fn query_retrieve_system_prompt() -> String {
 
 ## 输出格式（纯 JSON，不要 markdown 代码块）：
 {"page_ids": ["id1", "id2"]}"#
-        .to_string()
+            .to_string()
+    }
 }
 
 /// User message for Q&A stage 1: retrieval.
@@ -223,26 +395,69 @@ pub fn query_retrieve_user_message(
     question: &str,
     conversation_context: &str,
     page_index: &[(String, String, String)], // (id, title, summary)
+    locale: &str,
 ) -> String {
     let mut parts = Vec::new();
-    if !conversation_context.is_empty() {
-        parts.push(format!("对话上下文:\n{}", conversation_context));
-    }
-    parts.push(format!("问题: {}", question));
-    parts.push("\n=== 知识库页面索引 ===".to_string());
-    if page_index.is_empty() {
-        parts.push("（知识库为空）".to_string());
+    if crate::locale::is_english(locale) {
+        if !conversation_context.is_empty() {
+            parts.push(format!("Conversation context:\n{}", conversation_context));
+        }
+        parts.push(format!("Question: {}", question));
+        parts.push("\n=== Knowledge Base Page Index ===".to_string());
+        if page_index.is_empty() {
+            parts.push("(Knowledge base is empty)".to_string());
+        } else {
+            for (id, title, summary) in page_index {
+                parts.push(format!("[{}] {} — {}", id, title, summary));
+            }
+        }
     } else {
-        for (id, title, summary) in page_index {
-            parts.push(format!("[{}] {} — {}", id, title, summary));
+        if !conversation_context.is_empty() {
+            parts.push(format!("对话上下文:\n{}", conversation_context));
+        }
+        parts.push(format!("问题: {}", question));
+        parts.push("\n=== 知识库页面索引 ===".to_string());
+        if page_index.is_empty() {
+            parts.push("（知识库为空）".to_string());
+        } else {
+            for (id, title, summary) in page_index {
+                parts.push(format!("[{}] {} — {}", id, title, summary));
+            }
         }
     }
     parts.join("\n")
 }
 
 /// System prompt for Q&A stage 2: answer the question.
-pub fn query_answer_system_prompt() -> String {
-    r##"你是「OpenWiki」知识库的问答助手。用户根据自己积累的知识库向你提问。
+pub fn query_answer_system_prompt(locale: &str) -> String {
+    if crate::locale::is_english(locale) {
+        r##"You are the Q&A assistant for the "OpenWiki" knowledge base. The user asks questions based on their accumulated knowledge base.
+
+## Core principles:
+- You receive two parts of knowledge base content:
+  1. "Relevant knowledge pages": Full text of pages directly related to the question (if any)
+  2. "Knowledge base overview": Title and summary index of all pages, giving you the full picture
+- Prioritize the full text of "Relevant knowledge pages" for specific questions
+- For broad questions (e.g. "what do I care about", "what's most important"), analyze the "Knowledge base overview" holistically
+- When citing knowledge base content, note the source page title (e.g. "According to the 'RAG Technology' page...")
+- If supplementing with your own knowledge, mark it "[AI supplement]"
+- Answer in English, concise and clear, in Markdown format
+
+## Output format (pure JSON, no markdown code blocks):
+{
+  "answer": "Answer content (Markdown format)",
+  "page_ids_used": ["IDs of pages actually cited"],
+  "source_mode": "knowledge_base or mixed or ai_only",
+  "confidence": 0.8
+}
+
+source_mode values:
+- "knowledge_base": Answer is entirely based on knowledge base content
+- "mixed": Primarily from knowledge base, partially supplemented by AI
+- "ai_only": No relevant content in knowledge base, answered entirely by AI"##
+        .to_string()
+    } else {
+        r##"你是「OpenWiki」知识库的问答助手。用户根据自己积累的知识库向你提问。
 
 ## 核心原则：
 - 你会收到两部分知识库内容：
@@ -266,7 +481,8 @@ source_mode 取值：
 - "knowledge_base": 回答完全基于知识库内容
 - "mixed": 主要基于知识库，部分由 AI 补充
 - "ai_only": 知识库无相关内容，完全由 AI 回答"##
-    .to_string()
+        .to_string()
+    }
 }
 
 /// User message for Q&A stage 2: answer with full page content + overview.
@@ -275,65 +491,133 @@ pub fn query_answer_user_message(
     conversation_context: &str,
     relevant_pages: &[(String, String, String)], // (id, title, body_markdown)
     page_overview: &[(String, String, String)],  // (id, title, summary) — all pages
+    locale: &str,
 ) -> String {
     let mut parts = Vec::new();
-    if !conversation_context.is_empty() {
-        parts.push(format!("对话上下文:\n{}", conversation_context));
-    }
-    parts.push(format!("问题: {}", question));
-
-    // Detailed content of specifically retrieved pages
-    if !relevant_pages.is_empty() {
-        parts.push("\n=== 相关知识页面（全文） ===".to_string());
-        let mut budget = 8000i64;
-        for (id, title, body) in relevant_pages {
-            if budget <= 0 { break; }
-            let take = (budget as usize).min(body.chars().count());
-            let body_truncated: String = body.chars().take(take).collect();
-            parts.push(format!("\n--- [{}] {} ---\n{}", id, title, body_truncated));
-            budget -= body_truncated.len() as i64;
+    if crate::locale::is_english(locale) {
+        if !conversation_context.is_empty() {
+            parts.push(format!("Conversation context:\n{}", conversation_context));
         }
-    }
+        parts.push(format!("Question: {}", question));
 
-    // Overview of entire knowledge base
-    if !page_overview.is_empty() {
-        parts.push("\n=== 知识库概览（全部页面标题与摘要） ===".to_string());
-        for (id, title, summary) in page_overview {
-            if summary.is_empty() {
-                parts.push(format!("[{}] {}", id, title));
-            } else {
-                parts.push(format!("[{}] {} — {}", id, title, summary));
+        if !relevant_pages.is_empty() {
+            parts.push("\n=== Relevant Knowledge Pages (full text) ===".to_string());
+            let mut budget = 8000i64;
+            for (id, title, body) in relevant_pages {
+                if budget <= 0 { break; }
+                let take = (budget as usize).min(body.chars().count());
+                let body_truncated: String = body.chars().take(take).collect();
+                parts.push(format!("\n--- [{}] {} ---\n{}", id, title, body_truncated));
+                budget -= body_truncated.len() as i64;
             }
         }
+
+        if !page_overview.is_empty() {
+            parts.push("\n=== Knowledge Base Overview (all page titles and summaries) ===".to_string());
+            for (id, title, summary) in page_overview {
+                if summary.is_empty() {
+                    parts.push(format!("[{}] {}", id, title));
+                } else {
+                    parts.push(format!("[{}] {} — {}", id, title, summary));
+                }
+            }
+        } else {
+            parts.push("\n(Knowledge base is empty)".to_string());
+        }
     } else {
-        parts.push("\n（知识库为空）".to_string());
+        if !conversation_context.is_empty() {
+            parts.push(format!("对话上下文:\n{}", conversation_context));
+        }
+        parts.push(format!("问题: {}", question));
+
+        if !relevant_pages.is_empty() {
+            parts.push("\n=== 相关知识页面（全文） ===".to_string());
+            let mut budget = 8000i64;
+            for (id, title, body) in relevant_pages {
+                if budget <= 0 { break; }
+                let take = (budget as usize).min(body.chars().count());
+                let body_truncated: String = body.chars().take(take).collect();
+                parts.push(format!("\n--- [{}] {} ---\n{}", id, title, body_truncated));
+                budget -= body_truncated.len() as i64;
+            }
+        }
+
+        if !page_overview.is_empty() {
+            parts.push("\n=== 知识库概览（全部页面标题与摘要） ===".to_string());
+            for (id, title, summary) in page_overview {
+                if summary.is_empty() {
+                    parts.push(format!("[{}] {}", id, title));
+                } else {
+                    parts.push(format!("[{}] {} — {}", id, title, summary));
+                }
+            }
+        } else {
+            parts.push("\n（知识库为空）".to_string());
+        }
     }
 
     parts.join("\n")
 }
 
 /// System prompt for query rewriting (multi-turn).
-pub fn query_rewrite_system_prompt() -> String {
-    r#"你是查询改写助手。用户在对话中提出了一个后续问题，这个问题可能依赖之前的对话上下文。
+pub fn query_rewrite_system_prompt(locale: &str) -> String {
+    if crate::locale::is_english(locale) {
+        r#"You are a query rewriting assistant. The user asked a follow-up question in a conversation that may depend on prior context.
+Rewrite this question as a standalone, self-contained search query that can be understood without context.
+Return only the rewritten query text — no JSON, no explanation."#
+            .to_string()
+    } else {
+        r#"你是查询改写助手。用户在对话中提出了一个后续问题，这个问题可能依赖之前的对话上下文。
 请将这个问题改写为一个独立的、完整的搜索查询，使其无需上下文也能被理解。
 只返回改写后的查询文本，不要JSON，不要解释。"#
-        .to_string()
+            .to_string()
+    }
 }
 
 /// User message for query rewriting.
 pub fn query_rewrite_user_message(
     current_question: &str,
     recent_turns: &str,
+    locale: &str,
 ) -> String {
-    format!(
-        "最近的对话:\n{}\n\n用户的后续问题: {}\n\n请将这个后续问题改写为独立的搜索查询：",
-        recent_turns, current_question
-    )
+    if crate::locale::is_english(locale) {
+        format!(
+            "Recent conversation:\n{}\n\nUser's follow-up question: {}\n\nRewrite this follow-up question as a standalone search query:",
+            recent_turns, current_question
+        )
+    } else {
+        format!(
+            "最近的对话:\n{}\n\n用户的后续问题: {}\n\n请将这个后续问题改写为独立的搜索查询：",
+            recent_turns, current_question
+        )
+    }
 }
 
 /// System prompt for wiki lint — health check.
-pub fn lint_system_prompt() -> String {
-    r#"你是「OpenWiki」知识库的健康检查员。你的任务是检查知识库的一致性和完整性。
+pub fn lint_system_prompt(locale: &str) -> String {
+    if crate::locale::is_english(locale) {
+        r#"You are the health checker for the "OpenWiki" knowledge base. Your task is to check the knowledge base for consistency and completeness.
+
+## Checks:
+- Contradictions: Do different pages make conflicting claims?
+- Knowledge gaps: Are there obvious missing subtopics or related concepts within existing themes?
+- Staleness risk: Which pages might contain outdated information (based on domain knowledge)?
+
+## Output format (pure JSON, no markdown code blocks):
+{
+  "findings": [
+    {
+      "lint_type": "contradiction|gap|stale",
+      "severity": "info|warning|critical",
+      "title": "Issue title",
+      "description": "Issue description",
+      "page_ids": ["affected page IDs"]
+    }
+  ]
+}"#
+        .to_string()
+    } else {
+        r#"你是「OpenWiki」知识库的健康检查员。你的任务是检查知识库的一致性和完整性。
 
 ## 检查项：
 - 矛盾：不同页面之间是否有相互矛盾的说法
@@ -352,14 +636,21 @@ pub fn lint_system_prompt() -> String {
     }
   ]
 }"#
-    .to_string()
+        .to_string()
+    }
 }
 
 /// User message for lint.
 pub fn lint_user_message(
     pages: &[(String, String, String, String)], // (id, title, summary, page_type)
+    locale: &str,
 ) -> String {
-    let mut parts = vec!["=== 知识库全部页面 ===".to_string()];
+    let header = if crate::locale::is_english(locale) {
+        "=== All Knowledge Base Pages ==="
+    } else {
+        "=== 知识库全部页面 ==="
+    };
+    let mut parts = vec![header.to_string()];
     for (id, title, summary, page_type) in pages {
         parts.push(format!("[{}] ({}) {} — {}", id, page_type, title, summary));
     }

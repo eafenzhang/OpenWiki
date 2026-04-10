@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { useTranslation } from "react-i18next";
 import { useReportStore } from "../../stores/reportStore";
 import {
   generateReport,
@@ -20,6 +21,8 @@ import type { ReportSummary, ReportSection, WeeklyReport, FeedbackType } from ".
 import type { CapturedContent } from "../../types/content";
 
 export function ReportView() {
+  const { t } = useTranslation("report");
+  const { t: tc } = useTranslation("common");
   const {
     currentReport,
     reportList,
@@ -81,7 +84,7 @@ export function ReportView() {
       setIsHistoryOpen(false);
     } catch (e) {
       console.error("Failed to load report:", e);
-      setError("加载周报失败，请稍后重试");
+      setError(t("error.loadFailed"));
     }
   };
 
@@ -97,11 +100,11 @@ export function ReportView() {
       setReportList(reports);
     } catch (e) {
       console.error("Failed to generate report:", e);
-      setError("生成周报失败，请确认已配置 AI 服务后重试");
+      setError(t("error.generateFailed"));
     } finally {
       setIsGenerating(false);
     }
-  }, [isGenerating, setIsGenerating, setError, setCurrentReport, setReportList]);
+  }, [isGenerating, setIsGenerating, setError, setCurrentReport, setReportList, t]);
 
   const weekRange = currentReport
     ? formatDateRange(currentReport.week_start, currentReport.week_end)
@@ -115,7 +118,7 @@ export function ReportView() {
           <div className="flex items-center justify-between">
             <div className="flex items-baseline gap-2">
               <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">
-                周报
+                {t("title")}
               </h1>
               <span className="text-[11px] text-gray-400 dark:text-slate-500">
                 {weekRange}
@@ -132,7 +135,7 @@ export function ReportView() {
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    历史
+                    {t("history")}
                   </button>
                   <AnimatePresence>
                     {isHistoryOpen && (
@@ -160,14 +163,14 @@ export function ReportView() {
                 {isGenerating ? (
                   <>
                     <LoadingSpinner />
-                    生成中
+                    {t("generating")}
                   </>
                 ) : (
                   <>
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                     </svg>
-                    生成
+                    {t("generate")}
                   </>
                 )}
               </button>
@@ -217,13 +220,6 @@ export function ReportView() {
 
 /* ================================================================
    MASTER-DETAIL LAYOUT
-
-   Top: Dashboard cards (Stats + Rankings)
-   Middle: Single-column ranked list of sections (one-line summaries)
-   Detail: Full-width slide-in panel on section click
-           → AI advice + agree/disagree feedback
-           → Event description
-           → Related captured content
    ================================================================ */
 
 function CardGridLayout({
@@ -237,6 +233,8 @@ function CardGridLayout({
   onFilterChange: (f: FilterMode) => void;
   weekContents: CapturedContent[];
 }) {
+  const { t } = useTranslation("report");
+
   // Sort all sections by importance (relevance_score descending)
   const rankedSections = useMemo(() => {
     return [...report.sections].sort(
@@ -359,7 +357,7 @@ function CardGridLayout({
 
       {/* Footer */}
       <p className="text-center text-[10px] text-gray-300 dark:text-slate-600 py-2">
-        {report.content_count} 条内容 · {report.sections.length} 项分析
+        {t("footer.itemsCount", { count: report.content_count })} · {t("footer.analysisCount", { count: report.sections.length })}
       </p>
 
       {/* Detail Panel — rendered via Portal to escape parent transform context */}
@@ -380,8 +378,7 @@ function CardGridLayout({
 }
 
 /* ================================================================
-   SECTION LIST ITEM — one row in the ranked list.
-   Shows rank indicator, type badge, title (one line).
+   SECTION LIST ITEM
    ================================================================ */
 
 const DEFAULT_THEME = SECTION_THEME.routine;
@@ -465,13 +462,7 @@ function SectionListItem({
 }
 
 /* ================================================================
-   SECTION DETAIL PANEL — full-screen slide-in overlay.
-
-   Structure:
-   1. AI advice / recommendation for this topic
-   2. Agree / Disagree feedback buttons
-   3. Description summary of the event
-   4. Related captured content items
+   SECTION DETAIL PANEL
    ================================================================ */
 
 function SectionDetailPanel({
@@ -483,6 +474,7 @@ function SectionDetailPanel({
   contentItems: CapturedContent[];
   onClose: () => void;
 }) {
+  const { t } = useTranslation("report");
   const theme = SECTION_THEME[section.section_type] || DEFAULT_THEME;
   const [feedbackGiven, setFeedbackGiven] = useState<FeedbackType | null>(null);
 
@@ -573,7 +565,7 @@ function SectionDetailPanel({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
               </svg>
               <span className="text-[12px] font-bold text-gray-800 dark:text-gray-200">
-                AI 建议
+                {t("detail.aiAdvice")}
               </span>
             </div>
 
@@ -585,27 +577,27 @@ function SectionDetailPanel({
 
             {/* ── Feedback buttons ── */}
             <div className="flex items-center gap-2 mt-3">
-              <p className="text-[11px] text-gray-400 dark:text-slate-500 mr-1">这个分析有用吗？</p>
-              <FeedbackButton
+              <p className="text-[11px] text-gray-400 dark:text-slate-500 mr-1">{t("detail.feedbackQuestion")}</p>
+              <DetailFeedbackButton
                 type="interested"
                 icon="👍"
-                label="赞同"
+                label={t("detail.agree")}
                 isActive={feedbackGiven === "interested"}
                 isDisabled={feedbackGiven !== null && feedbackGiven !== "interested"}
                 onClick={() => handleFeedback("interested")}
               />
-              <FeedbackButton
+              <DetailFeedbackButton
                 type="dismissed"
                 icon="👎"
-                label="不赞同"
+                label={t("detail.disagree")}
                 isActive={feedbackGiven === "dismissed"}
                 isDisabled={feedbackGiven !== null && feedbackGiven !== "dismissed"}
                 onClick={() => handleFeedback("dismissed")}
               />
-              <FeedbackButton
+              <DetailFeedbackButton
                 type="bookmarked"
                 icon="⭐"
-                label="收藏"
+                label={t("detail.bookmark")}
                 isActive={feedbackGiven === "bookmarked"}
                 isDisabled={feedbackGiven !== null && feedbackGiven !== "bookmarked"}
                 onClick={() => handleFeedback("bookmarked")}
@@ -624,10 +616,10 @@ function SectionDetailPanel({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                 </svg>
                 <span className="text-[12px] font-bold text-gray-800 dark:text-gray-200">
-                  相关内容
+                  {t("detail.relatedContent")}
                 </span>
                 <span className="text-[11px] text-gray-400 dark:text-slate-500">
-                  {contentItems.length} 条
+                  {t("contentPreview.itemsCount", { count: contentItems.length })}
                 </span>
               </div>
 
@@ -641,7 +633,7 @@ function SectionDetailPanel({
 
           {contentItems.length === 0 && (
             <div className="px-4 py-8 text-center">
-              <p className="text-[12px] text-gray-300 dark:text-slate-600">暂无关联内容</p>
+              <p className="text-[12px] text-gray-300 dark:text-slate-600">{t("detail.noRelatedContent")}</p>
             </div>
           )}
         </div>
@@ -652,7 +644,7 @@ function SectionDetailPanel({
 
 /* ── Feedback Button ── */
 
-function FeedbackButton({
+function DetailFeedbackButton({
   icon,
   label,
   isActive,
@@ -689,11 +681,12 @@ function FeedbackButton({
 /* ── Detail Content Item — shown inside detail panel ── */
 
 function DetailContentItem({ content }: { content: CapturedContent }) {
+  const { t } = useTranslation("report");
   const typeConfig: Record<string, { icon: string; label: string }> = {
-    image: { icon: "🖼️", label: "图片" },
-    url: { icon: "🔗", label: "链接" },
-    text: { icon: "📝", label: "文本" },
-    mixed: { icon: "📎", label: "混合" },
+    image: { icon: "🖼️", label: t("contentType.image") },
+    url: { icon: "🔗", label: t("contentType.url") },
+    text: { icon: "📝", label: t("contentType.text") },
+    mixed: { icon: "📎", label: t("contentType.mixed") },
   };
   const { icon, label } = typeConfig[content.content_type] || typeConfig.text;
 
@@ -787,17 +780,17 @@ function DetailContentItem({ content }: { content: CapturedContent }) {
 }
 
 /* ================================================================
-   STATS CARD — Left dashboard card.
-   Big total number, mini sparkline, type breakdown.
+   STATS CARD
    ================================================================ */
 
 function StatsCard({ report }: { report: WeeklyReport }) {
+  const { t } = useTranslation("report");
   const stats = report.report_json?.stats;
   if (!stats) return <div className="rounded-2xl glass p-4" />;
 
   const maxCount = Math.max(...stats.daily_counts, 1);
   const typeCounts = stats.type_counts ?? { text: 0, url: 0, image: 0 };
-  const DAY_LABELS = ["一", "二", "三", "四", "五", "六", "日"];
+  const dayLabels = t("dayLabels", { returnObjects: true }) as string[];
 
   return (
     <motion.div
@@ -811,7 +804,7 @@ function StatsCard({ report }: { report: WeeklyReport }) {
     >
       {/* Header */}
       <p className="text-[10px] font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wider">
-        本周数据
+        {t("stats.thisWeekData")}
       </p>
 
       {/* Big number */}
@@ -819,7 +812,7 @@ function StatsCard({ report }: { report: WeeklyReport }) {
         <span className="text-[28px] font-black text-gray-900 dark:text-gray-50 leading-none tracking-tight">
           {stats.total_items}
         </span>
-        <span className="text-[11px] text-gray-400 dark:text-slate-500 ml-1">条内容</span>
+        <span className="text-[11px] text-gray-400 dark:text-slate-500 ml-1">{t("stats.itemsCount")}</span>
       </div>
 
       {/* Sparkline bar chart */}
@@ -836,7 +829,7 @@ function StatsCard({ report }: { report: WeeklyReport }) {
                 }`}
                 style={{ height: `${h}px` }}
               />
-              <span className="text-[8px] text-gray-300 dark:text-slate-600 leading-none">{DAY_LABELS[i]}</span>
+              <span className="text-[8px] text-gray-300 dark:text-slate-600 leading-none">{dayLabels[i]}</span>
             </div>
           );
         })}
@@ -846,17 +839,17 @@ function StatsCard({ report }: { report: WeeklyReport }) {
       <div className="flex items-center gap-1 mt-2.5">
         {typeCounts.text > 0 && (
           <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-blue-50 dark:bg-blue-500/10 text-blue-500 dark:text-blue-400">
-            {typeCounts.text} 文本
+            {typeCounts.text} {t("contentType.text")}
           </span>
         )}
         {typeCounts.url > 0 && (
           <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-orange-50 dark:bg-orange-500/10 text-orange-500 dark:text-orange-400">
-            {typeCounts.url} 链接
+            {typeCounts.url} {t("contentType.url")}
           </span>
         )}
         {typeCounts.image > 0 && (
           <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-50 dark:bg-amber-500/10 text-amber-500 dark:text-amber-400">
-            {typeCounts.image} 图片
+            {typeCounts.image} {t("contentType.image")}
           </span>
         )}
       </div>
@@ -865,8 +858,7 @@ function StatsCard({ report }: { report: WeeklyReport }) {
 }
 
 /* ================================================================
-   RANKING CARD — Right dashboard card.
-   Top 3 sections ranked by relevance_score.
+   RANKING CARD
    ================================================================ */
 
 const RANK_COLORS = [
@@ -879,6 +871,7 @@ function RankingCard({ sections, onSelectSection }: {
   sections: ReportSection[];
   onSelectSection: (sectionId: string) => void;
 }) {
+  const { t } = useTranslation("report");
   const topSections = useMemo(() => {
     return [...sections]
       .filter((s) => s.section_type !== "recommendation" && s.section_type !== "routine")
@@ -898,7 +891,7 @@ function RankingCard({ sections, onSelectSection }: {
     >
       {/* Header */}
       <p className="text-[10px] font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wider">
-        重要内容
+        {t("stats.importantContent")}
       </p>
 
       {/* Ranked list */}
@@ -925,7 +918,7 @@ function RankingCard({ sections, onSelectSection }: {
         })}
 
         {topSections.length === 0 && (
-          <p className="text-[11px] text-gray-300 dark:text-slate-600 italic mt-2">暂无数据</p>
+          <p className="text-[11px] text-gray-300 dark:text-slate-600 italic mt-2">{t("noData")}</p>
         )}
       </div>
     </motion.div>
@@ -936,6 +929,7 @@ function RankingCard({ sections, onSelectSection }: {
 /* ── Empty State ── */
 
 function EmptyState({ onGenerate }: { onGenerate: () => void }) {
+  const { t } = useTranslation("report");
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -948,14 +942,14 @@ function EmptyState({ onGenerate }: { onGenerate: () => void }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
         </svg>
       </div>
-      <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-1">还没有周报</p>
-      <p className="text-xs text-gray-400 dark:text-slate-500 mb-4">AI 自动分析你本周的内容</p>
+      <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-1">{t("empty.title")}</p>
+      <p className="text-xs text-gray-400 dark:text-slate-500 mb-4">{t("empty.desc")}</p>
       <button
         onClick={onGenerate}
         className="px-4 py-2 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-medium
                    hover:opacity-80 transition-opacity cursor-pointer shadow-sm"
       >
-        开始生成
+        {t("empty.generate")}
       </button>
     </motion.div>
   );
@@ -964,6 +958,7 @@ function EmptyState({ onGenerate }: { onGenerate: () => void }) {
 /* ── Generating State ── */
 
 function GeneratingState() {
+  const { t } = useTranslation("report");
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -987,8 +982,8 @@ function GeneratingState() {
           transition={{ duration: 1.5, repeat: Infinity }}
         />
       </div>
-      <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">AI 分析中...</p>
-      <p className="text-xs text-gray-400 dark:text-slate-500">需要几秒钟</p>
+      <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t("generatingState.title")}</p>
+      <p className="text-xs text-gray-400 dark:text-slate-500">{t("generatingState.desc")}</p>
     </motion.div>
   );
 }

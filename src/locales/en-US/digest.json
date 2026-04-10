@@ -3,6 +3,9 @@
   "thisWeek": "This Week's Digest",
   "digested": "Digested",
   "remaining": "Remaining",
+  "digestedCount": "Digested {{count}}",
+  "remainingCount": "{{count}} remaining",
+  "digestedStat": "Digested {{count}} · {{remaining}} remaining",
   "actions": {
     "keep": "Keep",
     "archive": "Archive",
@@ -10,18 +13,131 @@
   },
   "card": {
     "noContent": "No content to digest",
-    "swipeHint": "Swipe left to dismiss, right to keep"
+    "swipeHint": "Swipe left to dismiss, right to keep",
+    "imagePlaceholder": "[Image]",
+    "noContentText": "No content",
+    "saved": "saved"
+  },
+  "onboarding": {
+    "welcome": "Welcome to Digest",
+    "desc": "Here are the items you saved this week. Flip through them and decide what to keep.",
+    "dismiss": "Got it, let's start"
+  },
+  "empty": {
+    "allDoneTitle": "All done for this week!",
+    "allDoneDesc": "You digested {{count}} items",
+    "noContentTitle": "No content to digest this week",
+    "noContentDesc": "Copy some content and OpenWiki will remember it for you"
+  },
+  "progress": {
+    "digested": "Digested {{count}}"
+  },
+  "retry": "Retry",
+  "timeAgo": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "daysAgo": "{{count}}d ago",
+    "monthsAgo": "{{count}}mo ago",
+    "yearsAgo": "{{count}}y ago"
   },
   "radar": {
-    "title": "Insight Report",
+    "title": "Deep Insights",
+    "subtitle": "AI deep analysis of your information collection behavior",
     "generating": "Generating...",
     "generate": "Generate Insight Report",
     "regenerate": "Regenerate",
+    "refreshTitle": "Refresh analysis",
     "lastGenerated": "Last generated",
     "noReport": "No report yet",
-    "noReportHint": "Capture some content first, then generate an insight report"
+    "noReportHint": "Capture some content first, then generate an insight report",
+    "errorTitle": "Failed to load insights",
+    "retry": "Retry",
+    "errorDefault": "An error occurred during analysis",
+    "reanalyze": "Re-analyze",
+    "updating": "Updating analysis...",
+    "analyzing": "Deeply analyzing your content...",
+    "emptyNeedApiKey": {
+      "title": "AI service not configured",
+      "desc": "Insight reports require an AI service to analyze your content"
+    },
+    "emptyNotEnough": {
+      "title": "Almost there",
+      "desc": "Keep saving content you find interesting. Analysis starts at 5 items."
+    },
+    "emptyScattered": {
+      "title": "A scattered couple of weeks",
+      "desc": "No concentrated direction found. Keep saving — new patterns may emerge next time."
+    },
+    "stats": {
+      "savedItems": "Saved Items",
+      "activeDays": "Active Days",
+      "annotated": "Annotated",
+      "annotationRate": "Annotation Rate",
+      "sources": "Sources"
+    },
+    "sections": {
+      "atAGlance": "At a Glance",
+      "atAGlanceSubtitle": "Quick Overview",
+      "infoDiet": "Info Diet",
+      "infoDietSubtitle": "Intake Structure",
+      "subconscious": "Subconscious",
+      "subconsciousSubtitle": "Hidden Interests",
+      "graveyard": "Bookmark Graveyard",
+      "graveyardSubtitle": "Sunk Risk",
+      "blindSpots": "Blind Spots",
+      "blindSpotsSubtitle": "Neglected Angles",
+      "actions": "Action Items",
+      "actionsSubtitle": "Actionable",
+      "heatmap": "Time Heatmap",
+      "heatmapSubtitle": "Daily Distribution",
+      "topicDistribution": "Topic Distribution",
+      "verdict": "One-Line Summary",
+      "verdictSubtitle": "Final Verdict"
+    },
+    "infoDiet": {
+      "sourceDistribution": "Source Distribution",
+      "depthVsFragment": "Depth vs Fragment",
+      "dietBias": "Diet Bias",
+      "itemsUnit": "items"
+    },
+    "subconscious": {
+      "evidenceCount": "{{count}} evidence items"
+    },
+    "graveyard": {
+      "worthReading": "Worth Re-reading"
+    },
+    "footer": {
+      "brand": "OpenWiki Insights",
+      "itemsCount": "{{count}} items",
+      "activeDays": "{{active}}/{{total}} days active"
+    },
+    "legacy": {
+      "suggestion": "Suggestion",
+      "contentCount": "{{count}} items",
+      "spanDays": "spanning {{count}} days",
+      "itemsShort": "{{count}} items",
+      "daysShort": "{{count}} days"
+    }
   },
   "insight": {
+    "backToRadar": "Back to Radar",
+    "contentCount": "{{count}} items",
+    "spanDays": "spanning {{count}} days",
+    "keyFindings": "Key Findings",
+    "suggestion": "Suggestion",
+    "relatedContent": "Related Content",
+    "relatedContentCount": "Related Content · {{count}}",
+    "contentFallback": "Content #{{idx}}",
+    "tag": {
+      "coreInterest": "Core Interest",
+      "emergingInterest": "Emerging Interest"
+    },
+    "trend": {
+      "growing": "↑ Growing",
+      "emerging": "● Emerging",
+      "stable": "— Stable",
+      "fading": "↓ Fading"
+    },
     "sectionType": {
       "key_insight": "Key Insight",
       "highlight": "Highlight",

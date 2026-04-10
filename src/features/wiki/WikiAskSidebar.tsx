@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Send, X, Plus, Trash2, BookOpen, Loader, ChevronLeft } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { WikiChatSession, WikiChatMessage } from "../../types/wiki";
@@ -11,6 +12,7 @@ interface WikiAskSidebarProps {
 }
 
 export function WikiAskSidebar({ onClose, onNavigateToPage }: WikiAskSidebarProps) {
+  const { t } = useTranslation("wiki");
   const [sessions, setSessions] = useState<WikiChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<WikiChatMessage[]>([]);
@@ -103,7 +105,7 @@ export function WikiAskSidebar({ onClose, onNavigateToPage }: WikiAskSidebarProp
         id: crypto.randomUUID(),
         session_id: activeSessionId,
         role: "assistant",
-        content: `请求失败: ${e}`,
+        content: t("ask.requestFailed", { error: String(e) }),
         source_mode: "ai_only",
         turn_index: messages.length + 1,
         created_at: new Date().toISOString(),
@@ -111,7 +113,7 @@ export function WikiAskSidebar({ onClose, onNavigateToPage }: WikiAskSidebarProp
       setMessages((prev) => [...prev, errorMsg]);
     }
     setIsAsking(false);
-  }, [input, isAsking, activeSessionId, messages]);
+  }, [input, isAsking, activeSessionId, messages, t]);
 
   const handleSaveAsPage = async (msgId: string) => {
     // Synchronous ref check prevents double-click race
@@ -124,7 +126,7 @@ export function WikiAskSidebar({ onClose, onNavigateToPage }: WikiAskSidebarProp
     } catch (e) {
       // Backend returns existing page on dedup, so "error" here is a real failure
       inFlightSaveRef.current.delete(msgId);
-      alert(`保存失败: ${e}`);
+      alert(t("ask.saveFailed", { error: String(e) }));
     }
     setSavingId(null);
   };
@@ -205,13 +207,13 @@ export function WikiAskSidebar({ onClose, onNavigateToPage }: WikiAskSidebarProp
         {view === "chat" ? (
           <button onClick={() => setView("list")} className="flex items-center gap-1 text-sm text-stone-500 hover:text-orange-500 transition-colors">
             <ChevronLeft size={16} />
-            <span>对话列表</span>
+            <span>{t("ask.chatList")}</span>
           </button>
         ) : (
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>知识问答</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{t("ask.qaTitle")}</span>
         )}
         <div className="flex items-center gap-1">
-          <button onClick={startNewSession} className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-white/[0.08] text-stone-400 hover:text-orange-500 transition-colors" title="新对话">
+          <button onClick={startNewSession} className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-white/[0.08] text-stone-400 hover:text-orange-500 transition-colors" title={t("ask.newChatTooltip")}>
             <Plus size={16} />
           </button>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-white/[0.08] text-stone-400 transition-colors">
@@ -225,11 +227,11 @@ export function WikiAskSidebar({ onClose, onNavigateToPage }: WikiAskSidebarProp
         <div className="flex-1 overflow-y-auto">
           {sessions.length === 0 ? (
             <div className="text-center py-12">
-              <p style={{ fontSize: 13, color: "var(--color-text-muted)" }}>还没有对话记录</p>
+              <p style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{t("ask.noSessions")}</p>
               <button onClick={startNewSession}
                 className="mt-3 px-4 py-2 rounded-lg text-sm font-medium"
                 style={{ color: "#F97316", backgroundColor: "#F9731615", border: "1px solid #F9731630" }}>
-                开始提问
+                {t("ask.startAsking")}
               </button>
             </div>
           ) : (
@@ -241,7 +243,7 @@ export function WikiAskSidebar({ onClose, onNavigateToPage }: WikiAskSidebarProp
                     className="flex-1 text-left px-3 py-2.5 rounded-lg hover:bg-stone-50 dark:hover:bg-white/[0.04] transition-colors"
                   >
                     <p className="text-sm truncate" style={{ color: "var(--color-text-primary)" }}>
-                      {s.title || "新对话"}
+                      {s.title || t("ask.defaultSessionTitle")}
                     </p>
                     <p className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>
                       {s.updated_at?.slice(0, 10)}
@@ -268,7 +270,7 @@ export function WikiAskSidebar({ onClose, onNavigateToPage }: WikiAskSidebarProp
             {messages.length === 0 && !isAsking && (
               <div className="text-center py-8">
                 <p style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-                  向知识库提问，AI 会优先参考你积累的知识回答
+                  {t("ask.chatHint")}
                 </p>
               </div>
             )}
@@ -290,8 +292,8 @@ export function WikiAskSidebar({ onClose, onNavigateToPage }: WikiAskSidebarProp
                           color: msg.source_mode === "ai_only" ? "var(--color-text-muted)" : "#F97316",
                           backgroundColor: msg.source_mode === "ai_only" ? "var(--color-surface-raised)" : "#F9731610",
                         }}>
-                          {msg.source_mode === "knowledge_base" ? "基于知识库" :
-                           msg.source_mode === "mixed" ? "知识库 + AI 补充" : "AI 回答"}
+                          {msg.source_mode === "knowledge_base" ? t("ask.sourceLabel.knowledge_base") :
+                           msg.source_mode === "mixed" ? t("ask.sourceLabel.mixed") : t("ask.sourceLabel.ai_only")}
                         </span>
                       </div>
                     )}
@@ -312,7 +314,7 @@ export function WikiAskSidebar({ onClose, onNavigateToPage }: WikiAskSidebarProp
                     {/* Referenced pages */}
                     {(resolvedRefs[msg.id] || []).length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1.5">
-                        <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>引用:</span>
+                        <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>{t("ask.references")}</span>
                         {(resolvedRefs[msg.id] || []).map((p, i) => (
                           <button key={p.id || i}
                             onClick={() => p.id && onNavigateToPage?.(p.id)}
@@ -329,7 +331,7 @@ export function WikiAskSidebar({ onClose, onNavigateToPage }: WikiAskSidebarProp
                         <span className="flex items-center gap-1 mt-1.5 px-2 py-1 text-[10px] font-medium"
                           style={{ color: "#16A34A" }}>
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                          已存入知识库
+                          {t("ask.savedToKB")}
                         </span>
                       ) : (
                         <button
@@ -340,7 +342,7 @@ export function WikiAskSidebar({ onClose, onNavigateToPage }: WikiAskSidebarProp
                           style={{ color: "#F97316" }}
                         >
                           {savingId === msg.id ? <Loader size={10} className="animate-spin" /> : <BookOpen size={10} />}
-                          {savingId === msg.id ? "保存中..." : "存入知识库"}
+                          {savingId === msg.id ? t("ask.savingToKB") : t("ask.saveToKB")}
                         </button>
                       )
                     )}
@@ -351,7 +353,7 @@ export function WikiAskSidebar({ onClose, onNavigateToPage }: WikiAskSidebarProp
             {isAsking && (
               <div className="flex items-center gap-2 px-3 py-2">
                 <Loader size={14} className="animate-spin text-orange-500" />
-                <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>思考中...</span>
+                <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>{t("ask.thinking")}</span>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -365,7 +367,7 @@ export function WikiAskSidebar({ onClose, onNavigateToPage }: WikiAskSidebarProp
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                placeholder="输入问题..."
+                placeholder={t("ask.inputPlaceholder")}
                 className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
                 style={{
                   backgroundColor: "var(--color-surface-raised, #F5F5F0)",

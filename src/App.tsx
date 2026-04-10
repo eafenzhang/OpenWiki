@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
 import { ClipboardList, Target, Settings, Search, BookOpen } from "lucide-react";
 import { ContentList } from "./features/content-list/ContentList";
@@ -18,18 +19,19 @@ type TabId = "content" | "wiki" | "digest" | "datahub" | "settings";
 
 interface TabItem {
   id: TabId;
-  label: string;
+  labelKey: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
-const TABS: TabItem[] = [
-  { id: "content", label: "内容", icon: ClipboardList },
-  { id: "wiki", label: "知识", icon: BookOpen },
-  { id: "digest", label: "洞察", icon: Target },
-  { id: "settings", label: "设置", icon: Settings },
+const TAB_DEFS: TabItem[] = [
+  { id: "content", labelKey: "nav.content", icon: ClipboardList },
+  { id: "wiki", labelKey: "nav.wiki", icon: BookOpen },
+  { id: "digest", labelKey: "nav.digest", icon: Target },
+  { id: "settings", labelKey: "nav.settings", icon: Settings },
 ];
 
 function App() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabId>("content");
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -110,7 +112,7 @@ function App() {
   useEffect(() => {
     const unlisten = listen<string>("navigate-tab", (event) => {
       const tab = event.payload as TabId;
-      if (TABS.some((t) => t.id === tab)) {
+      if (TAB_DEFS.some((td) => td.id === tab)) {
         switchTab(tab);
       }
     });
@@ -163,7 +165,7 @@ function App() {
           {/* Tab navigation — absolute center in the full header width */}
           <nav className="absolute inset-0 flex items-center justify-center pointer-events-none" data-tauri-drag-region>
             <div className="inline-flex bg-gray-100/60 dark:bg-white/[0.06] rounded-md p-0.5 pointer-events-auto">
-              {TABS.map((tab) => {
+              {TAB_DEFS.map((tab) => {
                 const IconComponent = tab.icon;
                 return (
                   <button
@@ -180,7 +182,7 @@ function App() {
                     `}
                   >
                     <IconComponent className="w-3.5 h-3.5" />
-                    <span>{tab.label}</span>
+                    <span>{t(tab.labelKey)}</span>
                   </button>
                 );
               })}
@@ -208,7 +210,8 @@ function App() {
                         setWikiSearchResults([]);
                       }
                     }}
-                    placeholder="搜索内容..."
+                    placeholder={t("action.search") + "..."}
+
                     className="w-48 px-2.5 py-1 text-xs border border-white/60 dark:border-white/[0.1] rounded-lg
                                bg-white/60 dark:bg-white/[0.06] text-gray-800 dark:text-gray-200
                                placeholder-gray-400 dark:placeholder-slate-500
@@ -223,16 +226,16 @@ function App() {
                                     border border-white/60 dark:border-white/[0.1]
                                     rounded-xl shadow-lg z-50">
                       {searching ? (
-                        <div className="px-3 py-4 text-center text-xs text-gray-400 dark:text-slate-500">搜索中...</div>
+                        <div className="px-3 py-4 text-center text-xs text-gray-400 dark:text-slate-500">{t("action.loading")}</div>
                       ) : searchResults.length === 0 && wikiSearchResults.length === 0 ? (
-                        <div className="px-3 py-4 text-center text-xs text-gray-400 dark:text-slate-500">无结果</div>
+                        <div className="px-3 py-4 text-center text-xs text-gray-400 dark:text-slate-500">{t("action.noData")}</div>
                       ) : (
                         <>
                           {/* Wiki results first */}
                           {wikiSearchResults.length > 0 && (
                             <>
                               <div className="px-3 py-1.5 text-[10px] font-semibold text-orange-500 bg-orange-500/5">
-                                知识页面
+                                {t("wiki:title")}
                               </div>
                               {wikiSearchResults.slice(0, 3).map((wp) => (
                                 <button
@@ -273,7 +276,7 @@ function App() {
                             <>
                               {wikiSearchResults.length > 0 && (
                                 <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 dark:text-slate-500 bg-gray-50/50 dark:bg-white/[0.02]">
-                                  捕获内容
+                                  {t("content:title")}
                                 </div>
                               )}
                               {searchResults.map((item) => (
@@ -294,7 +297,7 @@ function App() {
                                       {item.content_type === "image" ? "📷" : item.content_type === "url" ? "🔗" : "📝"}
                                     </span>
                                     <p className="text-xs text-gray-700 dark:text-gray-200 truncate flex-1">
-                                      {item.raw_text?.slice(0, 80) || item.source_url || "无内容"}
+                                      {item.raw_text?.slice(0, 80) || item.source_url || t("content:card.noContent")}
                                     </p>
                                   </div>
                                   <div className="flex items-center gap-1.5 mt-0.5 ml-5">
@@ -329,7 +332,7 @@ function App() {
                 onClick={() => setSearchOpen(true)}
                 className="p-1.5 text-gray-400 dark:text-slate-500 hover:text-orange-500 dark:hover:text-orange-400
                            hover:bg-white/50 dark:hover:bg-white/[0.08] rounded-lg transition-all"
-                title="搜索"
+                title={t("action.search")}
               >
                 <Search className="w-4 h-4" />
               </button>

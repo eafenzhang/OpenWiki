@@ -1,27 +1,15 @@
 import { BookOpen, User, FileText, GitCompare, Layers, MessageCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { WikiPage } from "../../types/wiki";
 
-const TYPE_CONFIG: Record<string, { icon: React.ComponentType<{ className?: string; size?: number; style?: React.CSSProperties }>; label: string; color: string }> = {
-  concept: { icon: BookOpen, label: "概念", color: "#F97316" },
-  entity: { icon: User, label: "实体", color: "#2563EB" },
-  source: { icon: FileText, label: "来源", color: "#16A34A" },
-  comparison: { icon: GitCompare, label: "对比", color: "#CA8A04" },
-  overview: { icon: Layers, label: "总览", color: "#7C3AED" },
-  qa: { icon: MessageCircle, label: "问答", color: "#78716C" },
+const TYPE_CONFIG_BASE: Record<string, { icon: React.ComponentType<{ className?: string; size?: number; style?: React.CSSProperties }>; labelKey: string; color: string }> = {
+  concept: { icon: BookOpen, labelKey: "browse.pageType.concept", color: "#F97316" },
+  entity: { icon: User, labelKey: "browse.pageType.entity", color: "#2563EB" },
+  source: { icon: FileText, labelKey: "browse.pageType.source", color: "#16A34A" },
+  comparison: { icon: GitCompare, labelKey: "browse.pageType.comparison", color: "#CA8A04" },
+  overview: { icon: Layers, labelKey: "browse.pageType.overview", color: "#7C3AED" },
+  qa: { icon: MessageCircle, labelKey: "card.qa", color: "#78716C" },
 };
-
-function timeAgo(dateStr: string): string {
-  const now = new Date();
-  const then = new Date(dateStr);
-  const diffMs = now.getTime() - then.getTime();
-  const hours = Math.floor(diffMs / (1000 * 60 * 60));
-  if (hours < 1) return "刚刚";
-  if (hours < 24) return `${hours} 小时前`;
-  const days = Math.floor(hours / 24);
-  if (days === 1) return "昨天";
-  if (days < 30) return `${days} 天前`;
-  return `${Math.floor(days / 30)} 个月前`;
-}
 
 interface WikiPageCardProps {
   page: WikiPage;
@@ -29,7 +17,22 @@ interface WikiPageCardProps {
 }
 
 export function WikiPageCard({ page, onClick }: WikiPageCardProps) {
-  const config = TYPE_CONFIG[page.page_type] || TYPE_CONFIG.concept;
+  const { t } = useTranslation("wiki");
+
+  function timeAgo(dateStr: string): string {
+    const now = new Date();
+    const then = new Date(dateStr);
+    const diffMs = now.getTime() - then.getTime();
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    if (hours < 1) return t("card.timeAgo.justNow");
+    if (hours < 24) return t("card.timeAgo.hoursAgo", { count: hours });
+    const days = Math.floor(hours / 24);
+    if (days === 1) return t("card.timeAgo.yesterday");
+    if (days < 30) return t("card.timeAgo.daysAgo", { count: days });
+    return t("card.timeAgo.monthsAgo", { count: Math.floor(days / 30) });
+  }
+
+  const config = TYPE_CONFIG_BASE[page.page_type] || TYPE_CONFIG_BASE.concept;
   const IconComponent = config.icon;
   const tags: string[] = page.tags ? JSON.parse(page.tags) : [];
   const isStale = page.status === "needs_recompile";
@@ -51,11 +54,11 @@ export function WikiPageCard({ page, onClick }: WikiPageCardProps) {
             className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
             style={{ color: config.color, backgroundColor: `${config.color}15` }}
           >
-            {config.label}
+            {t(config.labelKey)}
           </span>
           {isStale && (
             <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400">
-              ⚠ 待更新
+              ⚠ {t("card.stale")}
             </span>
           )}
         </div>

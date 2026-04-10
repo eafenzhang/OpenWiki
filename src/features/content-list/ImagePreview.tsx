@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 
 interface ImagePreviewProps {
   src: string;
@@ -7,6 +8,7 @@ interface ImagePreviewProps {
 }
 
 export function ImagePreview({ src, onClose }: ImagePreviewProps) {
+  const { t } = useTranslation("content");
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
@@ -133,7 +135,7 @@ export function ImagePreview({ src, onClose }: ImagePreviewProps) {
 
       {/* Bottom hint */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/30 text-xs">
-        滚轮缩放 · 拖拽平移 · R 重置 · Esc 关闭
+        {t("imagePreview.hint")}
       </div>
     </div>,
     document.body

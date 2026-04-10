@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useDigestStore } from "../../stores/digestStore";
 import { DigestCard } from "./DigestCard";
 
 export function DigestView() {
+  const { t } = useTranslation("digest");
   const {
     items, remaining, isLoading, digestedToday, error, loadItems, doDigest,
   } = useDigestStore();
@@ -58,36 +60,27 @@ export function DigestView() {
   const allDone = !isLoading && items.length === 0 && digestedToday > 0;
   const noContent = !isLoading && items.length === 0 && digestedToday === 0 && remaining === 0;
 
-  /*
-   * Layout (fixed height, no overflow):
-   * ┌─ header ──────────────────────┐  flex-shrink-0
-   * ├─ onboarding / error ──────────┤  flex-shrink-0
-   * ├─ ← [card (scrollable)] → ─────┤  flex-1 min-h-0
-   * ├─ [还要] [放手] [重要] ─────────┤  flex-shrink-0
-   * ├─ 3/12 · 🔥 ──────────────────┤  flex-shrink-0
-   * └──────────────────────────────┘
-   */
   return (
     <div className="flex flex-col px-5 py-4" style={{ height: "calc(100vh - 44px)" }}>
       {/* Header */}
       <div className="flex items-baseline justify-between mb-3 flex-shrink-0">
-        <h2 className="text-base font-semibold text-gray-800 dark:text-gray-100">本周消化</h2>
+        <h2 className="text-base font-semibold text-gray-800 dark:text-gray-100">{t("thisWeek")}</h2>
         <span className="text-xs text-gray-400 dark:text-slate-500">
-          已消化 {digestedToday} 条 · 剩余 {remaining} 条
+          {t("digestedStat", { count: digestedToday, remaining })}
         </span>
       </div>
 
       {/* Onboarding */}
       {showOnboarding && (
         <div className="glass rounded-xl p-4 mb-3 flex-shrink-0">
-          <p className="text-sm text-gray-700 dark:text-gray-200 mb-2 font-medium">👋 欢迎来到「消化」</p>
+          <p className="text-sm text-gray-700 dark:text-gray-200 mb-2 font-medium">👋 {t("onboarding.welcome")}</p>
           <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed mb-3">
-            这里展示你最近一周保存的内容。逐张翻看，决定保留还是放手。
+            {t("onboarding.desc")}
           </p>
           <button
             onClick={() => { setShowOnboarding(false); localStorage.setItem("xiaoyun_digest_onboarding_seen", "1"); }}
             className="text-xs text-orange-500 dark:text-orange-400 hover:underline"
-          >知道了，开始消化</button>
+          >{t("onboarding.dismiss")}</button>
         </div>
       )}
 
@@ -95,7 +88,7 @@ export function DigestView() {
       {error && (
         <div className="glass rounded-xl p-4 mb-3 flex-shrink-0">
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-          <button onClick={loadItems} className="text-xs text-red-500 hover:underline mt-1">重试</button>
+          <button onClick={loadItems} className="text-xs text-red-500 hover:underline mt-1">{t("retry")}</button>
         </div>
       )}
 
@@ -116,15 +109,15 @@ export function DigestView() {
       {allDone && (
         <div className="flex-1 flex flex-col items-center justify-center text-center">
           <span className="text-4xl mb-3">✨</span>
-          <p className="text-base font-medium text-gray-700 dark:text-gray-200 mb-1">本周内容消化完毕！</p>
-          <p className="text-xs text-gray-400 dark:text-slate-500">你消化了 {digestedToday} 条内容</p>
+          <p className="text-base font-medium text-gray-700 dark:text-gray-200 mb-1">{t("empty.allDoneTitle")}</p>
+          <p className="text-xs text-gray-400 dark:text-slate-500">{t("empty.allDoneDesc", { count: digestedToday })}</p>
         </div>
       )}
       {noContent && (
         <div className="flex-1 flex flex-col items-center justify-center text-center">
           <span className="text-4xl mb-3">📭</span>
-          <p className="text-base font-medium text-gray-700 dark:text-gray-200 mb-1">最近一周没有需要消化的内容</p>
-          <p className="text-xs text-gray-400 dark:text-slate-500">复制一些内容，OpenWiki 会帮你记住</p>
+          <p className="text-base font-medium text-gray-700 dark:text-gray-200 mb-1">{t("empty.noContentTitle")}</p>
+          <p className="text-xs text-gray-400 dark:text-slate-500">{t("empty.noContentDesc")}</p>
         </div>
       )}
 
@@ -184,7 +177,7 @@ export function DigestView() {
                          bg-emerald-50/50 dark:bg-emerald-500/[0.06]
                          hover:bg-emerald-100/50 dark:hover:bg-emerald-500/[0.12]
                          active:scale-95 transition-all"
-            >✓ 还要</button>
+            >✓ {t("actions.keep")}</button>
             <button
               onClick={() => handleDigest("archive")}
               className="flex-1 py-2.5 text-sm font-medium rounded-lg border
@@ -193,7 +186,7 @@ export function DigestView() {
                          bg-red-50/50 dark:bg-red-500/[0.06]
                          hover:bg-red-100/50 dark:hover:bg-red-500/[0.12]
                          active:scale-95 transition-all"
-            >✕ 放手</button>
+            >✕ {t("actions.archive")}</button>
             <button
               onClick={() => handleDigest("pin")}
               className="flex-1 py-2.5 text-sm font-medium rounded-lg border
@@ -202,14 +195,14 @@ export function DigestView() {
                          bg-amber-50/50 dark:bg-amber-500/[0.06]
                          hover:bg-amber-100/50 dark:hover:bg-amber-500/[0.12]
                          active:scale-95 transition-all"
-            >★ 重要</button>
+            >★ {t("actions.important")}</button>
           </div>
 
           {/* Progress */}
           <div className="mt-2 mb-1 flex items-center justify-center gap-3 text-xs text-gray-400 dark:text-slate-500 flex-shrink-0">
             <span>{currentIndex + 1} / {items.length}</span>
             {digestedToday > 0 && (
-              <><span>·</span><span>🔥 已消化 {digestedToday} 条</span></>
+              <><span>·</span><span>🔥 {t("progress.digested", { count: digestedToday })}</span></>
             )}
           </div>
         </>

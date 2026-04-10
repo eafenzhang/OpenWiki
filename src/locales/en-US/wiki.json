@@ -3,7 +3,8 @@
   "stats": {
     "pages": "pages",
     "edges": "connections",
-    "sources": "sources"
+    "sources": "sources",
+    "needsRecompile": "need update"
   },
   "tabs": {
     "ask": "Ask",
@@ -20,11 +21,33 @@
       "ai_only": "AI Answer"
     },
     "newChat": "New Chat",
-    "saveAsPage": "Save as Page"
+    "saveAsPage": "Save as Page",
+    "chatList": "Chat List",
+    "qaTitle": "Knowledge Q&A",
+    "newChatTooltip": "New Chat",
+    "noSessions": "No chat history yet",
+    "startAsking": "Start Asking",
+    "defaultSessionTitle": "New Chat",
+    "chatHint": "Ask your knowledge base — AI will prioritize your accumulated knowledge",
+    "sourceLabel": {
+      "knowledge_base": "Based on Knowledge Base",
+      "mixed": "KB + AI Supplement",
+      "ai_only": "AI Answer"
+    },
+    "references": "References:",
+    "savedToKB": "Saved to Knowledge Base",
+    "savingToKB": "Saving...",
+    "saveToKB": "Save to Knowledge Base",
+    "inputPlaceholder": "Type your question...",
+    "requestFailed": "Request failed: {{error}}",
+    "saveFailed": "Save failed: {{error}}"
   },
   "browse": {
+    "all": "All",
     "empty": "Knowledge base is empty",
+    "emptyTitle": "Knowledge base is empty",
     "emptyHint": "Start capturing content and knowledge will accumulate automatically",
+    "emptyDescription": "Captured content will be compiled into knowledge pages automatically, or click 'Add to Knowledge Base' in the content list",
     "searchPlaceholder": "Search pages...",
     "pageType": {
       "concept": "Concept",
@@ -39,12 +62,27 @@
     "related": "Related Pages",
     "lastCompiled": "Last Compiled",
     "confidence": "Confidence",
-    "tags": "Tags"
+    "tags": "Tags",
+    "overview": "Overview",
+    "staleWarning": "⚠ Some sources are stale, content needs update",
+    "confirmDelete": "Confirm Delete",
+    "cancel": "Cancel",
+    "deleteTooltip": "Delete Page",
+    "compiledFrom": "Compiled from the following content",
+    "loading": "Loading...",
+    "noSources": "No source records",
+    "contentDeleted": "Content deleted",
+    "unknownApp": "Unknown",
+    "compiledAt": "Compiled on {{date}}",
+    "notCompiled": "Not compiled",
+    "sourceCount": "{{count}} sources"
   },
   "graph": {
     "title": "Knowledge Graph",
     "nodes": "Nodes",
-    "edges": "Connections"
+    "edges": "Connections",
+    "error": "Graph rendering error",
+    "retry": "Retry"
   },
   "lint": {
     "title": "Health Check",
@@ -60,6 +98,23 @@
       "contradiction": "Contradiction",
       "gap": "Gap",
       "stale": "Stale"
+    },
+    "healthTitle": "Knowledge Health",
+    "runTooltip": "Run Health Check",
+    "healthy": "Knowledge base is healthy, no issues found",
+    "keepTooltip": "Keep",
+    "recompileTooltip": "Recompile",
+    "deleteTooltip": "Delete"
+  },
+  "card": {
+    "qa": "Q&A",
+    "stale": "Needs Update",
+    "timeAgo": {
+      "justNow": "Just now",
+      "hoursAgo": "{{count}}h ago",
+      "yesterday": "Yesterday",
+      "daysAgo": "{{count}}d ago",
+      "monthsAgo": "{{count}}mo ago"
     }
   }
 }

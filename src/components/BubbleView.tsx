@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { useTranslation } from "react-i18next";
 
 const DEFAULT_COUNTDOWN = 5;
 const CIRCLE_SIZE = 48;
@@ -19,6 +20,8 @@ interface PendingCapture {
 }
 
 export default function BubbleView() {
+  const { t } = useTranslation("common");
+
   useEffect(() => {
     document.body.style.background = "transparent";
     document.documentElement.style.background = "transparent";
@@ -246,7 +249,9 @@ export default function BubbleView() {
   const isLeft = bubblePosition.includes("left");
 
   // Default action label for bar mode UI hint
-  const barActionHint = defaultAction === "save" ? `${countdown}s 后自动保存` : `${countdown}s 后自动丢弃`;
+  const barActionHint = defaultAction === "save"
+    ? t("bubble.autoSaveCountdown", { countdown })
+    : t("bubble.autoDismissCountdown", { countdown });
 
   // ════════════════════════════════════════════════════════════
 
@@ -308,7 +313,7 @@ export default function BubbleView() {
                     alt="preview"
                     className="h-full max-h-[60px] rounded-lg object-cover border border-white/10"
                   />
-                  <span className="text-[12px] text-white/40">截图 / 图片</span>
+                  <span className="text-[12px] text-white/40">{t("bubble.screenshotImage")}</span>
                 </div>
               ) : isUrl ? (
                 <div className="flex flex-col gap-1">
@@ -317,7 +322,7 @@ export default function BubbleView() {
                     <span className="text-[10px] text-white/30 uppercase">{pending.source_app}</span>
                   </div>
                   <p className="text-[12px] text-white/70 leading-snug line-clamp-2">
-                    {previewText || "链接内容"}
+                    {previewText || t("bubble.linkContent")}
                   </p>
                 </div>
               ) : (
@@ -327,7 +332,7 @@ export default function BubbleView() {
                     <span className="text-[10px] text-white/30 uppercase">{pending.source_app}</span>
                   </div>
                   <p className="text-[12px] text-white/70 leading-snug line-clamp-2">
-                    {previewText || "文本内容"}
+                    {previewText || t("bubble.textContent")}
                   </p>
                 </div>
               )}
@@ -350,7 +355,7 @@ export default function BubbleView() {
                   }
                   // Esc is handled by global listener (collapseCapsule)
                 }}
-                placeholder="输入备注... (Enter 保存, Esc 取消)"
+                placeholder={t("bubble.memoPlaceholder")}
                 className="flex-1 bg-white/[0.06] rounded-lg px-2.5 py-1.5 text-[13px] text-white/90 placeholder-white/25
                            outline-none border border-white/[0.08] focus:border-orange-400/30 min-w-0"
                 style={{ caretColor: "#F97316" }}
@@ -364,7 +369,7 @@ export default function BubbleView() {
                            border border-orange-400/15 hover:border-orange-400/30
                            transition-all duration-150 cursor-pointer flex-shrink-0"
               >
-                {saving ? "..." : "保存"}
+                {saving ? "..." : t("action.save")}
               </button>
               <button
                 onClick={collapseCapsule}
@@ -481,7 +486,7 @@ export default function BubbleView() {
 
   // ─── Bar Mode (full 340x72 bar) ───
   const barPreview = isImage
-    ? "截图 / 图片"
+    ? t("bubble.screenshotImage")
     : (pending.preview || pending.raw_text || "").length > 20
       ? (pending.preview || pending.raw_text || "").slice(0, 20) + "..."
       : (pending.preview || pending.raw_text || "");
@@ -551,7 +556,7 @@ export default function BubbleView() {
               <span className="text-[10px] text-orange-400/70">{barActionHint}</span>
             </div>
             <span className="text-[13px] font-medium text-white/85 leading-snug truncate">
-              {saving ? "保存中..." : barPreview}
+              {saving ? t("bubble.saving") : barPreview}
             </span>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -579,7 +584,7 @@ export default function BubbleView() {
               style={{ transition: "stroke-dashoffset 0.4s ease 0.1s" }}
             />
           </svg>
-          <span className="text-[14px] font-semibold text-white">已保存</span>
+          <span className="text-[14px] font-semibold text-white">{t("bubble.saved")}</span>
         </div>
       </div>
     </div>

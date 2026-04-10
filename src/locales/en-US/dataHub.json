@@ -1,16 +1,55 @@
 {
   "title": "Data Hub",
   "timeline": "Timeline",
-  "export": {
-    "title": "Export",
-    "markdown": "Export as Markdown",
-    "json": "Export as JSON",
-    "exporting": "Exporting...",
-    "success": "Export successful",
-    "failed": "Export failed"
+  "sidebar": {
+    "itemsAndDays": "{{items}} items · {{days}} days",
+    "noData": "No data",
+    "exportSettings": "Export Settings",
+    "openFolder": "Open Folder"
   },
   "dayDetail": {
     "items": "items",
-    "noContent": "No content for this day"
+    "itemsCount": "{{count}} items",
+    "noContent": "No content for this day",
+    "noContentForDay": "No content recorded for this day",
+    "exportDay": "Export Day",
+    "contentType": {
+      "text": "Text",
+      "url": "Links",
+      "image": "Images",
+      "mixed": "Mixed"
+    }
+  },
+  "welcome": {
+    "title": "Select a date to view content",
+    "desc": "Browse and manage all your historical data",
+    "totalItems": "Total Items",
+    "activeDays": "Active Days"
+  },
+  "export": {
+    "title": "Export Settings",
+    "markdown": "Export as Markdown",
+    "json": "Export as JSON",
+    "exporting": "Exporting...",
+    "exportAll": "Export All",
+    "success": "Export successful",
+    "failed": "Export failed",
+    "exportDir": "Export Directory",
+    "notSet": "Not set",
+    "exportedFiles": "Exported {{count}} files",
+    "openInFinder": "Open in Finder"
+  },
+  "weekday": {
+    "sun": "Sun",
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat"
+  },
+  "dateFormat": {
+    "dayWithWeekday": "{{weekday}} {{day}}",
+    "fullDate": "{{weekday}}, {{month}}/{{day}}"
   }
 }

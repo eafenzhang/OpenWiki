@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ReportStats } from "../../types/report";
 
 export type FilterMode = "all" | "text" | "url" | "image";
@@ -8,29 +9,29 @@ interface ActivityStatsCardProps {
   onFilterChange: (filter: FilterMode) => void;
 }
 
-const DAY_LABELS = ["一", "二", "三", "四", "五", "六", "日"];
-
 /**
  * Transparent filter tabs — no container, no background box.
  * Looks like iOS Segment Control floating on the page.
  */
 export function ActivityStatsCard({ stats, activeFilter, onFilterChange }: ActivityStatsCardProps) {
+  const { t } = useTranslation("report");
   const maxCount = Math.max(...stats.daily_counts, 1);
   const typeCounts = stats.type_counts ?? { text: 0, url: 0, image: 0 };
+  const dayLabels = t("dayLabels", { returnObjects: true }) as string[];
 
   return (
     <div className="flex items-center gap-0.5">
       {/* Segment-style filter tabs */}
       <div className="flex items-center glass rounded-xl p-0.5">
         <SegmentTab
-          label="全部"
+          label={t("filter.all")}
           count={stats.total_items}
           active={activeFilter === "all"}
           onClick={() => onFilterChange("all")}
         />
         {typeCounts.text > 0 && (
           <SegmentTab
-            label="文本"
+            label={t("filter.text")}
             count={typeCounts.text}
             active={activeFilter === "text"}
             onClick={() => onFilterChange("text")}
@@ -39,7 +40,7 @@ export function ActivityStatsCard({ stats, activeFilter, onFilterChange }: Activ
         )}
         {typeCounts.url > 0 && (
           <SegmentTab
-            label="链接"
+            label={t("filter.url")}
             count={typeCounts.url}
             active={activeFilter === "url"}
             onClick={() => onFilterChange("url")}
@@ -48,7 +49,7 @@ export function ActivityStatsCard({ stats, activeFilter, onFilterChange }: Activ
         )}
         {typeCounts.image > 0 && (
           <SegmentTab
-            label="图片"
+            label={t("filter.image")}
             count={typeCounts.image}
             active={activeFilter === "image"}
             onClick={() => onFilterChange("image")}
@@ -70,7 +71,7 @@ export function ActivityStatsCard({ stats, activeFilter, onFilterChange }: Activ
                   : "bg-gray-500 dark:bg-slate-400"
               }`}
               style={{ height: `${h}px` }}
-              title={`周${DAY_LABELS[i]}: ${count}`}
+              title={`${t("weekPrefix")}${dayLabels[i]}: ${count}`}
             />
           );
         })}

@@ -3,6 +3,9 @@
   "thisWeek": "本周消化",
   "digested": "已消化",
   "remaining": "剩余",
+  "digestedCount": "已消化 {{count}} 条",
+  "remainingCount": "剩余 {{count}} 条",
+  "digestedStat": "已消化 {{count}} 条 · 剩余 {{remaining}} 条",
   "actions": {
     "keep": "还要",
     "archive": "放手",
@@ -10,18 +13,131 @@
   },
   "card": {
     "noContent": "无内容可消化",
-    "swipeHint": "左滑忽略，右滑保留"
+    "swipeHint": "左滑忽略，右滑保留",
+    "imagePlaceholder": "[图片]",
+    "noContentText": "无内容",
+    "saved": "保存"
+  },
+  "onboarding": {
+    "welcome": "欢迎来到「消化」",
+    "desc": "这里展示你最近一周保存的内容。逐张翻看，决定保留还是放手。",
+    "dismiss": "知道了，开始消化"
+  },
+  "empty": {
+    "allDoneTitle": "本周内容消化完毕！",
+    "allDoneDesc": "你消化了 {{count}} 条内容",
+    "noContentTitle": "最近一周没有需要消化的内容",
+    "noContentDesc": "复制一些内容，OpenWiki 会帮你记住"
+  },
+  "progress": {
+    "digested": "已消化 {{count}} 条"
+  },
+  "retry": "重试",
+  "timeAgo": {
+    "today": "今天",
+    "yesterday": "昨天",
+    "daysAgo": "{{count}} 天前",
+    "monthsAgo": "{{count}} 个月前",
+    "yearsAgo": "{{count}} 年前"
   },
   "radar": {
-    "title": "洞察报告",
+    "title": "深度洞察",
+    "subtitle": "AI 深度分析你的信息收藏行为",
     "generating": "生成中...",
     "generate": "生成洞察报告",
     "regenerate": "重新生成",
+    "refreshTitle": "刷新分析",
     "lastGenerated": "上次生成",
     "noReport": "暂无报告",
-    "noReportHint": "积累一些内容后，点击生成洞察报告"
+    "noReportHint": "积累一些内容后，点击生成洞察报告",
+    "errorTitle": "洞察加载出错",
+    "retry": "重试",
+    "errorDefault": "分析时出现错误",
+    "reanalyze": "重新分析",
+    "updating": "正在更新分析...",
+    "analyzing": "正在深度分析你的内容...",
+    "emptyNeedApiKey": {
+      "title": "需要配置 AI 服务",
+      "desc": "洞察报告需要 AI 来分析你的内容"
+    },
+    "emptyNotEnough": {
+      "title": "你离洞察只差几步",
+      "desc": "继续保存你感兴趣的内容，积累到 5 条就能开始分析"
+    },
+    "emptyScattered": {
+      "title": "这两周比较分散",
+      "desc": "没有特别集中的方向。继续保存，下次分析可能会有新发现。"
+    },
+    "stats": {
+      "savedItems": "保存条目",
+      "activeDays": "活跃天数",
+      "annotated": "带备注",
+      "annotationRate": "主动率",
+      "sources": "信息源"
+    },
+    "sections": {
+      "atAGlance": "一眼看穿",
+      "atAGlanceSubtitle": "At a Glance",
+      "infoDiet": "信息食谱",
+      "infoDietSubtitle": "摄入结构",
+      "subconscious": "潜意识洞察",
+      "subconsciousSubtitle": "没意识到的关注",
+      "graveyard": "收藏夹坟场",
+      "graveyardSubtitle": "沉没风险",
+      "blindSpots": "知识空白",
+      "blindSpotsSubtitle": "被忽视的角度",
+      "actions": "行动建议",
+      "actionsSubtitle": "可执行",
+      "heatmap": "时间热力图",
+      "heatmapSubtitle": "每日分布",
+      "topicDistribution": "主题分布",
+      "verdict": "一句话总结",
+      "verdictSubtitle": "Final Verdict"
+    },
+    "infoDiet": {
+      "sourceDistribution": "来源分布",
+      "depthVsFragment": "深度vs碎片",
+      "dietBias": "偏食度",
+      "itemsUnit": "条"
+    },
+    "subconscious": {
+      "evidenceCount": "{{count}} 条证据"
+    },
+    "graveyard": {
+      "worthReading": "值得重读"
+    },
+    "footer": {
+      "brand": "OpenWiki 洞察",
+      "itemsCount": "{{count}} 条内容",
+      "activeDays": "{{active}}/{{total}} 天活跃"
+    },
+    "legacy": {
+      "suggestion": "建议",
+      "contentCount": "{{count}} 条内容",
+      "spanDays": "持续 {{count}} 天",
+      "itemsShort": "{{count}} 条",
+      "daysShort": "{{count}} 天"
+    }
   },
   "insight": {
+    "backToRadar": "返回雷达",
+    "contentCount": "{{count}} 条内容",
+    "spanDays": "持续 {{count}} 天",
+    "keyFindings": "核心发现",
+    "suggestion": "建议",
+    "relatedContent": "相关内容",
+    "relatedContentCount": "相关内容 · {{count}} 条",
+    "contentFallback": "内容 #{{idx}}",
+    "tag": {
+      "coreInterest": "核心关注",
+      "emergingInterest": "新兴关注"
+    },
+    "trend": {
+      "growing": "↑ 持续增长",
+      "emerging": "● 新兴",
+      "stable": "— 稳定",
+      "fading": "↓ 消退"
+    },
     "sectionType": {
       "key_insight": "关键发现",
       "highlight": "亮点",

@@ -37,7 +37,7 @@ pub async fn get_openai_oauth_status(state: State<'_, AppState>) -> Result<oauth
 #[tauri::command]
 pub async fn logout_openai_oauth(state: State<'_, AppState>) -> Result<(), String> {
     oauth::clear_token(state.db.clone()).await;
-    log::info!("OAuth: 用户已退出登录");
+    log::info!("OAuth: user logged out");
     Ok(())
 }
 
@@ -75,6 +75,6 @@ pub async fn get_gemini_oauth_status(state: State<'_, AppState>) -> Result<gemin
 #[tauri::command]
 pub async fn logout_gemini_oauth(state: State<'_, AppState>) -> Result<(), String> {
     gemini_oauth::clear_token(state.db.clone()).await;
-    log::info!("Gemini OAuth: 用户已退出登录");
+    log::info!("Gemini OAuth: user logged out");
     Ok(())
 }

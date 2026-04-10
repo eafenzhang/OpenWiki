@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { submitFeedback } from "../../services/reportService";
 import type { FeedbackType } from "../../types/report";
 
@@ -16,6 +17,7 @@ export function FeedbackButtons({
   sectionId,
   onFeedback,
 }: FeedbackButtonsProps) {
+  const { t } = useTranslation("report");
   const [interestedState, setInterestedState] =
     useState<FeedbackState>("idle");
   const [dismissedState, setDismissedState] = useState<FeedbackState>("idle");
@@ -49,18 +51,18 @@ export function FeedbackButtons({
       <FeedbackButton
         state={interestedState}
         disabled={isDisabled && interestedState === "idle"}
-        idleLabel="感兴趣"
+        idleLabel={t("feedback.interested")}
         idleIcon="👍"
-        confirmLabel="已记录"
+        confirmLabel={t("feedback.recorded")}
         onClick={() => handleFeedback("interested")}
         variant="interested"
       />
       <FeedbackButton
         state={dismissedState}
         disabled={isDisabled && dismissedState === "idle"}
-        idleLabel="已了解"
+        idleLabel={t("feedback.dismissed")}
         idleIcon="👋"
-        confirmLabel="已记录"
+        confirmLabel={t("feedback.recorded")}
         onClick={() => handleFeedback("dismissed")}
         variant="dismissed"
       />

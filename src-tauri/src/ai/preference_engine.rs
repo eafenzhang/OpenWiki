@@ -227,7 +227,7 @@ pub fn update_preferences(
 }
 
 /// Build a text summary of the user's top interests for inclusion in prompts.
-pub fn get_preference_summary(db: Arc<Database>) -> String {
+pub fn get_preference_summary(db: Arc<Database>, locale: &str) -> String {
     let repo = Repository::new(db);
 
     let preferences = match repo.get_all_preferences() {
@@ -253,15 +253,25 @@ pub fn get_preference_summary(db: Arc<Database>) -> String {
         return String::new();
     }
 
-    let mut summary = String::from("用户感兴趣的主题（按权重排序）：\n");
-    for pref in &top_prefs {
-        summary.push_str(&format!(
-            "- {} (权重: {:.1}, 出现: {}次)\n",
-            pref.topic, pref.weight, pref.occurrence_count
-        ));
+    if crate::locale::is_english(locale) {
+        let mut summary = String::from("User's topics of interest (sorted by weight):\n");
+        for pref in &top_prefs {
+            summary.push_str(&format!(
+                "- {} (weight: {:.1}, seen: {} times)\n",
+                pref.topic, pref.weight, pref.occurrence_count
+            ));
+        }
+        summary
+    } else {
+        let mut summary = String::from("用户感兴趣的主题（按权重排序）：\n");
+        for pref in &top_prefs {
+            summary.push_str(&format!(
+                "- {} (权重: {:.1}, 出现: {}次)\n",
+                pref.topic, pref.weight, pref.occurrence_count
+            ));
+        }
+        summary
     }
-
-    summary
 }
 
 /// Simple keyword extraction: tokenize by common delimiters,

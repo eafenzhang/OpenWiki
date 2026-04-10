@@ -6,9 +6,9 @@ use tauri::State;
 
 /// Supported platforms with built-in readers (no external tools needed).
 const BUILTIN_PLATFORMS: &[&str] = &[
-    "mp.weixin.qq.com (微信公众号)",
+    "mp.weixin.qq.com (WeChat)",
     "x.com / twitter.com (X/Twitter)",
-    "其他网页 (via Jina Reader)",
+    "Other web pages (via Jina Reader)",
 ];
 
 #[derive(Serialize, Deserialize)]
@@ -22,7 +22,7 @@ pub struct XReaderStatus {
 pub fn get_settings(state: State<'_, AppState>) -> Result<HashMap<String, String>, String> {
     let repo = Repository::new(state.db.clone());
     repo.get_all_settings()
-        .map_err(|e| format!("获取设置失败: {}", e))
+        .map_err(|e| format!("Failed to get settings: {}", e))
 }
 
 #[tauri::command]
@@ -33,7 +33,7 @@ pub fn update_setting(
 ) -> Result<(), String> {
     let repo = Repository::new(state.db.clone());
     repo.update_setting(&key, &value)
-        .map_err(|e| format!("更新设置失败: {}", e))
+        .map_err(|e| format!("Failed to update setting: {}", e))
 }
 
 #[tauri::command]

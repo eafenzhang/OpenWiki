@@ -17,7 +17,7 @@ pub async fn generate_report(state: State<'_, AppState>) -> Result<WeeklyReport,
     // Read AI settings from the database
     let provider = repo
         .get_setting("ai_provider")
-        .map_err(|e| format!("读取 AI 提供商失败: {}", e))?
+        .map_err(|e| format!("Failed to read AI provider: {}", e))?
         .unwrap_or_else(|| "anthropic".to_string());
 
     let api_key = repo
@@ -28,15 +28,15 @@ pub async fn generate_report(state: State<'_, AppState>) -> Result<WeeklyReport,
         .unwrap_or_default();
 
     if api_key.is_empty() {
-        return Err("请先在设置中配置 AI API Key".to_string());
+        return Err("Please configure an AI API Key in settings first".to_string());
     }
 
     let model = repo
         .get_setting("ai_model")
-        .map_err(|e| format!("读取 AI 模型失败: {}", e))?
+        .map_err(|e| format!("Failed to read AI model: {}", e))?
         .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
 
-    log::info!("生成周报: provider={}, model={}", provider, model);
+    log::info!("Generating weekly report: provider={}, model={}", provider, model);
 
     // Generate the report (async)
     let report = report_generator::generate_weekly_report(db, &api_key, &provider, &model).await?;
@@ -52,7 +52,7 @@ pub fn get_report(
 ) -> Result<Option<WeeklyReport>, String> {
     let repo = Repository::new(state.db.clone());
     repo.get_report_by_week(&week_start)
-        .map_err(|e| format!("获取周报失败: {}", e))
+        .map_err(|e| format!("Failed to get weekly report: {}", e))
 }
 
 /// List all generated reports (metadata only: id, week_start, week_end, summary).
@@ -60,7 +60,7 @@ pub fn get_report(
 pub fn get_all_reports(state: State<'_, AppState>) -> Result<Vec<WeeklyReport>, String> {
     let repo = Repository::new(state.db.clone());
     repo.get_all_reports()
-        .map_err(|e| format!("获取周报列表失败: {}", e))
+        .map_err(|e| format!("Failed to get weekly report list: {}", e))
 }
 
 /// Submit user feedback (interested / dismissed / bookmarked) for a content or section.
@@ -84,9 +84,9 @@ pub fn submit_feedback(
     };
 
     repo.save_feedback(&feedback)
-        .map_err(|e| format!("保存反馈失败: {}", e))?;
+        .map_err(|e| format!("Failed to save feedback: {}", e))?;
 
-    log::info!("用户反馈已保存: type={}", feedback_type);
+    log::info!("User feedback saved: type={}", feedback_type);
 
     // If the user marked content as interested/bookmarked, update preferences
     if let Some(cid) = content_id {
@@ -95,7 +95,7 @@ pub fn submit_feedback(
             || feedback_type == "dismissed"
         {
             if let Err(e) = preference_engine::update_preferences(db, &cid, &feedback_type) {
-                log::error!("更新用户偏好失败: {}", e);
+                log::error!("Failed to update user preferences: {}", e);
                 // Don't fail the whole command for preference update errors
             }
         }

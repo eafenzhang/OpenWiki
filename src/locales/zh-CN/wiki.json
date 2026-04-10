@@ -3,7 +3,8 @@
   "stats": {
     "pages": "个知识页面",
     "edges": "个关联",
-    "sources": "条来源"
+    "sources": "条来源",
+    "needsRecompile": "个待更新"
   },
   "tabs": {
     "ask": "提问",
@@ -20,31 +21,68 @@
       "ai_only": "AI 回答"
     },
     "newChat": "新对话",
-    "saveAsPage": "保存为知识页面"
+    "saveAsPage": "保存为知识页面",
+    "chatList": "对话列表",
+    "qaTitle": "知识问答",
+    "newChatTooltip": "新对话",
+    "noSessions": "还没有对话记录",
+    "startAsking": "开始提问",
+    "defaultSessionTitle": "新对话",
+    "chatHint": "向知识库提问，AI 会优先参考你积累的知识回答",
+    "sourceLabel": {
+      "knowledge_base": "基于知识库",
+      "mixed": "知识库 + AI 补充",
+      "ai_only": "AI 回答"
+    },
+    "references": "引用:",
+    "savedToKB": "已存入知识库",
+    "savingToKB": "保存中...",
+    "saveToKB": "存入知识库",
+    "inputPlaceholder": "输入问题...",
+    "requestFailed": "请求失败: {{error}}",
+    "saveFailed": "保存失败: {{error}}"
   },
   "browse": {
+    "all": "全部",
     "empty": "知识库为空",
+    "emptyTitle": "知识库还是空的",
     "emptyHint": "开始采集内容后，知识会自动积累",
+    "emptyDescription": "捕获的内容会自动编译成知识页面，或在内容列表中点击「加入知识库」",
     "searchPlaceholder": "搜索知识页面...",
     "pageType": {
       "concept": "概念",
       "entity": "实体",
       "source": "来源",
       "comparison": "对比",
-      "overview": "综述"
+      "overview": "总览"
     }
   },
   "detail": {
     "sources": "来源",
     "related": "相关页面",
     "lastCompiled": "最后编译",
-    "confidence": "可信度",
-    "tags": "标签"
+    "confidence": "置信度",
+    "tags": "标签",
+    "overview": "总览",
+    "staleWarning": "⚠ 部分来源已失效，正文待更新",
+    "confirmDelete": "确认删除",
+    "cancel": "取消",
+    "deleteTooltip": "删除页面",
+    "compiledFrom": "基于以下内容编译",
+    "loading": "加载中...",
+    "noSources": "无来源记录",
+    "contentDeleted": "内容已删除",
+    "unknownApp": "未知",
+    "compiledAt": "编译于 {{date}}",
+    "notCompiled": "未编译",
+    "sourceCount": "{{count}} 个来源"
   },
   "graph": {
     "title": "知识图谱",
     "nodes": "节点",
-    "edges": "关联"
+    "edges": "关联",
+    "error": "图谱渲染出错",
+    "retry": "重试"
   },
   "lint": {
     "title": "健康检查",
@@ -60,6 +98,23 @@
       "contradiction": "矛盾",
       "gap": "空白",
       "stale": "过时"
+    },
+    "healthTitle": "知识库健康",
+    "runTooltip": "运行健康检查",
+    "healthy": "知识库状态良好，暂无问题",
+    "keepTooltip": "保留",
+    "recompileTooltip": "重编",
+    "deleteTooltip": "删除"
+  },
+  "card": {
+    "qa": "问答",
+    "stale": "待更新",
+    "timeAgo": {
+      "justNow": "刚刚",
+      "hoursAgo": "{{count}} 小时前",
+      "yesterday": "昨天",
+      "daysAgo": "{{count}} 天前",
+      "monthsAgo": "{{count}} 个月前"
     }
   }
 }

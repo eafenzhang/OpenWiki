@@ -1,13 +1,18 @@
+import { useTranslation } from "react-i18next";
 import { useDataHubStore } from "../../stores/dataHubStore";
 import { openExportDir } from "../../services/dataHubService";
 
-const WEEKDAY_NAMES = ["日", "一", "二", "三", "四", "五", "六"];
+const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
-function formatDateLabel(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  const day = d.getDate();
-  const weekday = WEEKDAY_NAMES[d.getDay()];
-  return `${day}日 周${weekday}`;
+function useFormatDateLabel() {
+  const { t } = useTranslation("dataHub");
+
+  return (dateStr: string): string => {
+    const d = new Date(dateStr + "T00:00:00");
+    const day = d.getDate();
+    const weekday = t(`weekday.${WEEKDAY_KEYS[d.getDay()]}`);
+    return t("dateFormat.dayWithWeekday", { day, weekday });
+  };
 }
 
 interface DateSidebarProps {
@@ -17,6 +22,8 @@ interface DateSidebarProps {
 }
 
 export function DateSidebar({ totalItems, totalDates, onOpenExportPanel }: DateSidebarProps) {
+  const { t } = useTranslation("dataHub");
+  const formatDateLabel = useFormatDateLabel();
   const monthGroups = useDataHubStore((s) => s.monthGroups);
   const selectedDate = useDataHubStore((s) => s.selectedDate);
   const selectDate = useDataHubStore((s) => s.selectDate);
@@ -35,7 +42,7 @@ export function DateSidebar({ totalItems, totalDates, onOpenExportPanel }: DateS
       <div className="px-3 pt-3 pb-1">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-gray-500 dark:text-slate-400">
-            {totalItems} 条 · {totalDates} 天
+            {t("sidebar.itemsAndDays", { items: totalItems, days: totalDates })}
           </span>
         </div>
       </div>
@@ -46,7 +53,7 @@ export function DateSidebar({ totalItems, totalDates, onOpenExportPanel }: DateS
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <span className="text-2xl mb-2">📭</span>
             <p className="text-xs text-gray-400 dark:text-slate-500">
-              暂无数据
+              {t("sidebar.noData")}
             </p>
           </div>
         ) : (
@@ -123,7 +130,7 @@ export function DateSidebar({ totalItems, totalDates, onOpenExportPanel }: DateS
                      hover:bg-white/50 dark:hover:bg-white/[0.06] rounded-lg transition-colors"
         >
           <span>&#x2699;&#xFE0F;</span>
-          <span>导出设置</span>
+          <span>{t("sidebar.exportSettings")}</span>
         </button>
         <button
           onClick={handleOpenFolder}
@@ -131,7 +138,7 @@ export function DateSidebar({ totalItems, totalDates, onOpenExportPanel }: DateS
                      hover:bg-white/50 dark:hover:bg-white/[0.06] rounded-lg transition-colors"
         >
           <span>&#x1F4C1;</span>
-          <span>打开文件夹</span>
+          <span>{t("sidebar.openFolder")}</span>
         </button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { useTranslation } from "react-i18next";
 import type { CapturedContent } from "../../types/content";
 
 interface ContentPreviewPanelProps {
@@ -14,6 +15,8 @@ interface ContentPreviewPanelProps {
  * navigating away to the content tab.
  */
 export function ContentPreviewPanel({ items, onClose }: ContentPreviewPanelProps) {
+  const { t } = useTranslation("report");
+
   // Close on Escape
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -53,9 +56,9 @@ export function ContentPreviewPanel({ items, onClose }: ContentPreviewPanelProps
 
             <div className="flex items-center justify-between">
               <h3 className="text-[13px] font-bold text-gray-900 dark:text-gray-100">
-                相关内容
+                {t("contentPreview.relatedContent")}
                 <span className="ml-1.5 text-[11px] font-normal text-gray-400 dark:text-slate-500">
-                  {items.length} 条
+                  {t("contentPreview.itemsCount", { count: items.length })}
                 </span>
               </h3>
               <button
@@ -86,11 +89,12 @@ export function ContentPreviewPanel({ items, onClose }: ContentPreviewPanelProps
 /* ── Individual content preview item ── */
 
 function ContentPreviewItem({ content }: { content: CapturedContent }) {
+  const { t } = useTranslation("report");
   const typeConfig: Record<string, { icon: string; label: string }> = {
-    image: { icon: "🖼️", label: "图片" },
-    url: { icon: "🔗", label: "链接" },
-    text: { icon: "📝", label: "文本" },
-    mixed: { icon: "📎", label: "混合" },
+    image: { icon: "🖼️", label: t("contentType.image") },
+    url: { icon: "🔗", label: t("contentType.url") },
+    text: { icon: "📝", label: t("contentType.text") },
+    mixed: { icon: "📎", label: t("contentType.mixed") },
   };
   const { icon, label } = typeConfig[content.content_type] || typeConfig.text;
 

@@ -379,7 +379,7 @@ pub fn confirm_capture(
                 "content:url-fetched",
                 serde_json::json!({"id": "", "reorder": true}),
             );
-            return Err("已移到最前面".to_string());
+            return Err("Moved to top".to_string());
         }
         Err(e) => return Err(e),
     };
@@ -821,7 +821,7 @@ pub fn spawn_summary_task(
             {
                 match result {
                     Ok(raw) => {
-                        log::info!("Codex OAuth 摘要生成成功 for {}", content_id);
+                        log::info!("Codex OAuth summary generated for {}", content_id);
                         let (summary, tags, digest) = extract_summary_tags_digest(&raw);
                         if !summary.is_empty() {
                             let tags_str = tags.join(",");
@@ -843,7 +843,7 @@ pub fn spawn_summary_task(
                         return;
                     }
                     Err(e) => {
-                        log::warn!("Codex OAuth 失败，回退到 API Key: {}", e);
+                        log::warn!("Codex OAuth failed, falling back to API Key: {}", e);
                         // Fall through to API key path below
                     }
                 }
@@ -857,7 +857,7 @@ pub fn spawn_summary_task(
             ).await {
                 match result {
                     Ok(raw) => {
-                        log::info!("Gemini OAuth 摘要生成成功 for {}", content_id);
+                        log::info!("Gemini OAuth summary generated for {}", content_id);
                         let (summary, tags, digest) = extract_summary_tags_digest(&raw);
                         if !summary.is_empty() {
                             let tags_str = tags.join(",");
@@ -869,7 +869,7 @@ pub fn spawn_summary_task(
                         return;
                     }
                     Err(e) => {
-                        log::warn!("Gemini OAuth 失败，回退到 API Key: {}", e);
+                        log::warn!("Gemini OAuth failed, falling back to API Key: {}", e);
                     }
                 }
             }
@@ -1178,7 +1178,7 @@ pub async fn test_ai_connection(
         &api_key,
         &model,
         "",
-        "回复\"连接成功\"这四个字，不要说其他内容。",
+        "Reply with the words \"connection successful\" only, nothing else.",
         64,
     )
     .await

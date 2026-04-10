@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { AnimatePresence } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import type { BriefingTopic } from "../../services/radarService";
@@ -15,6 +16,7 @@ interface InsightDetailProps {
 }
 
 export function InsightDetail({ topic, idMap, contents, onBack }: InsightDetailProps) {
+  const { t } = useTranslation("digest");
   const [extraContents, setExtraContents] = useState<CapturedContent[]>([]);
   const [viewingContent, setViewingContent] = useState<CapturedContent | null>(null);
   const [copied, setCopied] = useState(false);
@@ -38,8 +40,8 @@ export function InsightDetail({ topic, idMap, contents, onBack }: InsightDetailP
     const item = contentId ? allContents.find((c) => c.id === contentId) : undefined;
     return { idx, contentId, item };
   });
-  const tagColor = topic.tag === "核心关注" ? "#FB923C"
-    : topic.tag === "新兴关注" ? "#4ADE80"
+  const tagColor = topic.tag === t("insight.tag.coreInterest") ? "#FB923C"
+    : topic.tag === t("insight.tag.emergingInterest") ? "#4ADE80"
     : "#3B82F6";
 
   return (
@@ -53,7 +55,7 @@ export function InsightDetail({ topic, idMap, contents, onBack }: InsightDetailP
         onMouseLeave={(e) => e.currentTarget.style.color = "var(--color-text-secondary)"}
       >
         <ArrowLeft size={14} />
-        返回雷达
+        {t("insight.backToRadar")}
       </button>
 
       {/* Tag */}
@@ -74,7 +76,7 @@ export function InsightDetail({ topic, idMap, contents, onBack }: InsightDetailP
 
       {/* Meta */}
       <p className="mb-6" style={{ fontSize: 12, color: "var(--color-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
-        {topic.content_count} 条内容 · 持续 {topic.span_days} 天 · {trendLabel(topic.trend)}
+        {t("insight.contentCount", { count: topic.content_count })} · {t("insight.spanDays", { count: topic.span_days })} · {trendLabel(t, topic.trend)}
       </p>
 
       {/* Deep analysis */}
@@ -95,7 +97,7 @@ export function InsightDetail({ topic, idMap, contents, onBack }: InsightDetailP
       {topic.key_findings.length > 0 && (
         <div className="mb-6">
           <h4 className="mb-3" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: "var(--color-text-muted)" }}>
-            核心发现
+            {t("insight.keyFindings")}
           </h4>
           <div className="space-y-2">
             {topic.key_findings.map((finding, i) => (
@@ -114,7 +116,7 @@ export function InsightDetail({ topic, idMap, contents, onBack }: InsightDetailP
       {topic.suggestion && (
         <div className="rounded-xl p-4 mb-6" style={{ backgroundColor: "var(--color-accent-soft, #431407)", border: "1px solid rgba(251, 146, 60, 0.25)" }}>
           <div className="mb-1" style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: "#FB923C" }}>
-            建议
+            {t("insight.suggestion")}
           </div>
           <div style={{ fontSize: 13, lineHeight: 1.6, color: "var(--color-text-secondary)" }}>
             {topic.suggestion}
@@ -126,14 +128,14 @@ export function InsightDetail({ topic, idMap, contents, onBack }: InsightDetailP
       {evidenceItems.length > 0 && (
         <div>
           <h4 className="mb-3" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: "var(--color-text-muted)" }}>
-            相关内容 · {evidenceItems.length} 条
+            {t("insight.relatedContentCount", { count: evidenceItems.length })}
           </h4>
           <div>
             {evidenceItems.map(({ idx, item }) => {
               const title = item?.summary
                 || item?.raw_text?.slice(0, 80)
                 || item?.source_url
-                || `内容 #${idx}`;
+                || t("insight.contentFallback", { idx });
               const date = item?.captured_at?.slice(0, 10) || "";
               return (
                 <div
@@ -178,12 +180,12 @@ export function InsightDetail({ topic, idMap, contents, onBack }: InsightDetailP
   );
 }
 
-function trendLabel(trend: string): string {
+function trendLabel(t: (key: string) => string, trend: string): string {
   switch (trend) {
-    case "growing": return "↑ 持续增长";
-    case "emerging": return "● 新兴";
-    case "stable": return "— 稳定";
-    case "fading": return "↓ 消退";
-    default: return "— 稳定";
+    case "growing": return t("insight.trend.growing");
+    case "emerging": return t("insight.trend.emerging");
+    case "stable": return t("insight.trend.stable");
+    case "fading": return t("insight.trend.fading");
+    default: return t("insight.trend.stable");
   }
 }

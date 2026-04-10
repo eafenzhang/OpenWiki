@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, BookOpen, User, FileText, GitCompare, Layers, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { WikiPage, WikiPageSource } from "../../types/wiki";
@@ -15,12 +16,12 @@ const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string; size?
   overview: Layers,
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  concept: "概念",
-  entity: "实体",
-  source: "来源",
-  comparison: "对比",
-  overview: "总览",
+const TYPE_LABEL_KEYS: Record<string, string> = {
+  concept: "browse.pageType.concept",
+  entity: "browse.pageType.entity",
+  source: "browse.pageType.source",
+  comparison: "browse.pageType.comparison",
+  overview: "browse.pageType.overview",
 };
 
 const SOURCE_STATUS_ICON: Record<string, string> = {
@@ -43,6 +44,7 @@ interface WikiPageDetailProps {
 }
 
 export function WikiPageDetail({ page, onClose, onDelete, onNavigateToContent }: WikiPageDetailProps) {
+  const { t } = useTranslation("wiki");
   const [sources, setSources] = useState<(WikiPageSource & { content?: CapturedContent })[]>([]);
   const [loadingSources, setLoadingSources] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -100,11 +102,11 @@ export function WikiPageDetail({ page, onClose, onDelete, onNavigateToContent }:
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded"
               style={{ color: "#F97316", backgroundColor: "#F9731615" }}
             >
-              {TYPE_LABELS[page.page_type] || page.page_type}
+              {t(TYPE_LABEL_KEYS[page.page_type]) || page.page_type}
             </span>
             {isStale && (
               <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                ⚠ 部分来源已失效，正文待更新
+                {t("detail.staleWarning")}
               </span>
             )}
           </div>
@@ -115,20 +117,20 @@ export function WikiPageDetail({ page, onClose, onDelete, onNavigateToContent }:
                   onClick={() => { onDelete(page.id); setDeleteConfirm(false); }}
                   className="px-2 py-1 rounded-md text-[11px] font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
                 >
-                  确认删除
+                  {t("detail.confirmDelete")}
                 </button>
                 <button
                   onClick={() => setDeleteConfirm(false)}
                   className="px-2 py-1 rounded-md text-[11px] text-stone-400 hover:text-stone-600 transition-colors"
                 >
-                  取消
+                  {t("detail.cancel")}
                 </button>
               </div>
             ) : (
               <button
                 onClick={() => setDeleteConfirm(true)}
                 className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-stone-400 hover:text-red-500 transition-colors"
-                title="删除页面"
+                title={t("detail.deleteTooltip")}
               >
                 <Trash2 size={16} />
               </button>
@@ -181,13 +183,13 @@ export function WikiPageDetail({ page, onClose, onDelete, onNavigateToContent }:
           <div className="border-t pt-4" style={{ borderColor: "var(--color-border, #E7E5E4)" }}>
             <h3 className="flex items-center gap-1.5 mb-3" style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>
               <span className="w-1 h-1 rounded-full" style={{ backgroundColor: "#F97316" }} />
-              基于以下内容编译
+              {t("detail.compiledFrom")}
             </h3>
 
             {loadingSources ? (
-              <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>加载中...</div>
+              <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{t("detail.loading")}</div>
             ) : sources.length === 0 ? (
-              <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>无来源记录</div>
+              <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{t("detail.noSources")}</div>
             ) : (
               <div className="space-y-2">
                 {sources.map((src) => (
@@ -202,10 +204,10 @@ export function WikiPageDetail({ page, onClose, onDelete, onNavigateToContent }:
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs truncate" style={{ color: "var(--color-text-primary)" }}>
-                        {src.content?.raw_text?.slice(0, 80) || src.content?.source_url || "内容已删除"}
+                        {src.content?.raw_text?.slice(0, 80) || src.content?.source_url || t("detail.contentDeleted")}
                       </p>
                       <p className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>
-                        {src.content?.source_app || "未知"} · {src.contributed_at?.slice(0, 10)}
+                        {src.content?.source_app || t("detail.unknownApp")} · {src.contributed_at?.slice(0, 10)}
                       </p>
                     </div>
                   </button>
@@ -217,7 +219,7 @@ export function WikiPageDetail({ page, onClose, onDelete, onNavigateToContent }:
           {/* Confidence footer */}
           <div className="mt-4 pt-3 flex items-center justify-between border-t" style={{ borderColor: "var(--color-border)" }}>
             <div className="flex items-center gap-2">
-              <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>置信度</span>
+              <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{t("detail.confidence")}</span>
               <div className="w-20 h-1.5 rounded-full" style={{ backgroundColor: "var(--color-border)" }}>
                 <div
                   className="h-1.5 rounded-full"
@@ -232,7 +234,7 @@ export function WikiPageDetail({ page, onClose, onDelete, onNavigateToContent }:
               </span>
             </div>
             <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
-              {page.last_compiled_at ? `编译于 ${page.last_compiled_at.slice(0, 10)}` : "未编译"} · {sources.length} 个来源
+              {page.last_compiled_at ? t("detail.compiledAt", { date: page.last_compiled_at.slice(0, 10) }) : t("detail.notCompiled")} · {t("detail.sourceCount", { count: sources.length })}
             </span>
           </div>
         </div>
