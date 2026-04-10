@@ -1,0 +1,33 @@
+{
+  "title": "洞察",
+  "thisWeek": "本周消化",
+  "digested": "已消化",
+  "remaining": "剩余",
+  "actions": {
+    "keep": "还要",
+    "archive": "放手",
+    "important": "重要"
+  },
+  "card": {
+    "noContent": "无内容可消化",
+    "swipeHint": "左滑忽略，右滑保留"
+  },
+  "radar": {
+    "title": "洞察报告",
+    "generating": "生成中...",
+    "generate": "生成洞察报告",
+    "regenerate": "重新生成",
+    "lastGenerated": "上次生成",
+    "noReport": "暂无报告",
+    "noReportHint": "积累一些内容后，点击生成洞察报告"
+  },
+  "insight": {
+    "sectionType": {
+      "key_insight": "关键发现",
+      "highlight": "亮点",
+      "trend": "趋势",
+      "recommendation": "建议",
+      "routine": "常规"
+    }
+  }
+}

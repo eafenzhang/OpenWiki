@@ -1,0 +1,73 @@
+{
+  "title": "Settings",
+  "sections": {
+    "appearance": "Appearance",
+    "capture": "Capture",
+    "insights": "Insights",
+    "ai": "AI",
+    "connection": "Connection",
+    "storage": "Storage",
+    "language": "Language"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "language": {
+    "label": "Language",
+    "system": "System",
+    "zh-CN": "中文",
+    "en-US": "English",
+    "description": "Switch display language"
+  },
+  "capture": {
+    "enabled": "Enable Capture",
+    "mode": "Capture Mode",
+    "auto": "Auto Save",
+    "confirm": "Confirm Before Save",
+    "bubbleStyle": "Bubble Style",
+    "circle": "Circle",
+    "bar": "Bar",
+    "bubblePosition": "Bubble Position",
+    "positions": {
+      "bottom-right": "Bottom Right",
+      "bottom-center": "Bottom Center",
+      "bottom-left": "Bottom Left",
+      "top-right": "Top Right",
+      "top-center": "Top Center",
+      "top-left": "Top Left"
+    },
+    "defaultAction": "Default Action",
+    "defaultSave": "Save",
+    "defaultDismiss": "Dismiss",
+    "countdown": "Countdown",
+    "countdownUnit": "sec",
+    "sensitiveFilter": "Sensitive Data Filter",
+    "urlReading": "URL Content Reading"
+  },
+  "ai": {
+    "provider": "AI Provider",
+    "model": "Model",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "Enter API Key",
+    "oauthLogin": "OAuth Login",
+    "oauthLoggedIn": "Logged in",
+    "oauthLogout": "Logout",
+    "testConnection": "Test Connection",
+    "testSuccess": "Connection successful",
+    "testFailed": "Connection failed",
+    "autoSelect": "Auto (Smart Select)"
+  },
+  "insights": {
+    "interval": "Analysis Interval",
+    "intervalUnit": "days"
+  },
+  "storage": {
+    "totalItems": "Total Items",
+    "diskUsage": "Disk Usage",
+    "screenshotDir": "Screenshot Directory",
+    "unit": "MB"
+  }
+}

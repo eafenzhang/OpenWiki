@@ -1,0 +1,16 @@
+{
+  "title": "数据中心",
+  "timeline": "时间线",
+  "export": {
+    "title": "导出",
+    "markdown": "导出为 Markdown",
+    "json": "导出为 JSON",
+    "exporting": "导出中...",
+    "success": "导出成功",
+    "failed": "导出失败"
+  },
+  "dayDetail": {
+    "items": "条内容",
+    "noContent": "当天无内容"
+  }
+}

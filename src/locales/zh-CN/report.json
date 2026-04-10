@@ -1,0 +1,21 @@
+{
+  "title": "周报",
+  "generate": "生成周报",
+  "regenerate": "重新生成",
+  "generating": "生成中...",
+  "noReport": "暂无周报",
+  "noReportHint": "积累一些内容后，点击生成周报",
+  "weekOf": "{{start}} - {{end}} 周报",
+  "summary": "概览",
+  "sections": "详情",
+  "stats": {
+    "totalItems": "本周内容",
+    "topics": "主题数",
+    "topSources": "主要来源",
+    "unit": "条"
+  },
+  "feedback": {
+    "helpful": "有帮助",
+    "notHelpful": "没帮助"
+  }
+}

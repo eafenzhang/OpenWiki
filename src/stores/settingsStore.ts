@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { getSettings, updateSetting, checkXReaderStatus, type XReaderStatus } from "../services/settingsService";
+import { setAppLanguage, getSystemLanguage, initLanguageFromSettings } from "../i18n";
 
 export type AIProvider = "anthropic" | "openai" | "openrouter" | "dashscope" | "google" | "minimax";
 
@@ -110,6 +111,7 @@ export type BubbleStyle = "circle" | "bar";
 export type BubblePosition = "bottom-right" | "bottom-center" | "bottom-left" | "top-right" | "top-center" | "top-left";
 export type DefaultAction = "save" | "dismiss";
 export type ThemeMode = "light" | "dark" | "system";
+export type LanguageMode = "system" | "zh-CN" | "en-US";
 
 const VALID_BUBBLE_POSITIONS: BubblePosition[] = [
   "bottom-right", "bottom-center", "bottom-left",
@@ -177,6 +179,8 @@ interface SettingsState {
   provider: AIProvider;
   model: string;
   theme: ThemeMode;
+  languageMode: LanguageMode;
+  resolvedLanguage: string;
   captureEnabled: boolean;
   captureMode: CaptureMode;
   bubbleStyle: BubbleStyle;
@@ -210,6 +214,7 @@ interface SettingsState {
   setProvider: (provider: AIProvider) => void;
   setModel: (model: string) => void;
   setTheme: (theme: ThemeMode) => void;
+  setLanguageMode: (mode: LanguageMode) => void;
   setCaptureEnabled: (enabled: boolean) => void;
   setCaptureMode: (mode: CaptureMode) => void;
   setBubbleStyle: (style: BubbleStyle) => void;
@@ -232,6 +237,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   provider: "anthropic",
   model: "claude-sonnet-4-20250514",
   theme: "system",
+  languageMode: "system" as LanguageMode,
+  resolvedLanguage: getSystemLanguage(),
   captureEnabled: true,
   captureMode: "confirm" as CaptureMode,
   bubbleStyle: "circle" as BubbleStyle,
@@ -288,11 +295,19 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
       applyTheme(theme);
 
+      const languageMode = (["system", "zh-CN", "en-US"].includes(settings.language_mode)
+        ? settings.language_mode
+        : "system") as LanguageMode;
+      const resolvedLanguage = languageMode === "system" ? getSystemLanguage() : languageMode;
+      initLanguageFromSettings(languageMode);
+
       set({
         apiKey,
         provider,
         model,
         theme,
+        languageMode,
+        resolvedLanguage,
         captureEnabled: settings.capture_enabled !== "false",
         captureMode: (settings.capture_mode === "auto" ? "auto" : "confirm") as CaptureMode,
         bubbleStyle: (settings.bubble_style === "bar" ? "bar" : "circle") as BubbleStyle,
@@ -367,6 +382,15 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     applyTheme(theme);
     updateSetting("theme", theme).catch((e) =>
       console.error("Failed to save theme:", e)
+    );
+  },
+
+  setLanguageMode: (mode) => {
+    const resolved = mode === "system" ? getSystemLanguage() : mode;
+    set({ languageMode: mode, resolvedLanguage: resolved });
+    setAppLanguage(mode);
+    updateSetting("language_mode", mode).catch((e) =>
+      console.error("Failed to save language_mode:", e)
     );
   },
 

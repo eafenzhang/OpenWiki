@@ -1,0 +1,65 @@
+{
+  "title": "知识库",
+  "stats": {
+    "pages": "个知识页面",
+    "edges": "个关联",
+    "sources": "条来源"
+  },
+  "tabs": {
+    "ask": "提问",
+    "browse": "浏览",
+    "graph": "图谱"
+  },
+  "ask": {
+    "placeholder": "向你的知识库提问...",
+    "send": "发送",
+    "thinking": "思考中...",
+    "sourceMode": {
+      "knowledge_base": "基于知识库",
+      "mixed": "知识库 + AI",
+      "ai_only": "AI 回答"
+    },
+    "newChat": "新对话",
+    "saveAsPage": "保存为知识页面"
+  },
+  "browse": {
+    "empty": "知识库为空",
+    "emptyHint": "开始采集内容后，知识会自动积累",
+    "searchPlaceholder": "搜索知识页面...",
+    "pageType": {
+      "concept": "概念",
+      "entity": "实体",
+      "source": "来源",
+      "comparison": "对比",
+      "overview": "综述"
+    }
+  },
+  "detail": {
+    "sources": "来源",
+    "related": "相关页面",
+    "lastCompiled": "最后编译",
+    "confidence": "可信度",
+    "tags": "标签"
+  },
+  "graph": {
+    "title": "知识图谱",
+    "nodes": "节点",
+    "edges": "关联"
+  },
+  "lint": {
+    "title": "健康检查",
+    "run": "运行检查",
+    "running": "检查中...",
+    "noIssues": "未发现问题",
+    "severity": {
+      "info": "信息",
+      "warning": "警告",
+      "critical": "严重"
+    },
+    "type": {
+      "contradiction": "矛盾",
+      "gap": "空白",
+      "stale": "过时"
+    }
+  }
+}

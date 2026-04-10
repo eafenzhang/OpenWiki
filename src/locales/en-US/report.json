@@ -1,0 +1,21 @@
+{
+  "title": "Weekly Report",
+  "generate": "Generate Report",
+  "regenerate": "Regenerate",
+  "generating": "Generating...",
+  "noReport": "No report yet",
+  "noReportHint": "Capture some content first, then generate a weekly report",
+  "weekOf": "Week of {{start}} - {{end}}",
+  "summary": "Summary",
+  "sections": "Details",
+  "stats": {
+    "totalItems": "This Week",
+    "topics": "Topics",
+    "topSources": "Top Sources",
+    "unit": "items"
+  },
+  "feedback": {
+    "helpful": "Helpful",
+    "notHelpful": "Not Helpful"
+  }
+}

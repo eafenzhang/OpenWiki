@@ -1,0 +1,26 @@
+{
+  "title": "Content",
+  "filter": {
+    "all": "All",
+    "text": "Text",
+    "image": "Image",
+    "url": "Link"
+  },
+  "card": {
+    "summary": "Summary",
+    "tags": "Tags",
+    "source": "From",
+    "compileToWiki": "Add to Wiki",
+    "compiledToWiki": "In Wiki",
+    "readFailed": "[Read Failed]",
+    "noContent": "No content",
+    "analyzing": "Analyzing...",
+    "regenerateSummary": "Regenerate Summary",
+    "delete": "Delete",
+    "deleteConfirm": "Are you sure you want to delete this item?",
+    "userNote": "Note"
+  },
+  "empty": "No content captured yet",
+  "emptyHint": "Copy text, take screenshots, or save links — content will appear here automatically",
+  "searchPlaceholder": "Search content..."
+}

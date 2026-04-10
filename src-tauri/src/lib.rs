@@ -2,6 +2,7 @@ mod ai;
 mod capture;
 mod commands;
 mod export;
+pub mod locale;
 mod scheduler;
 mod storage;
 

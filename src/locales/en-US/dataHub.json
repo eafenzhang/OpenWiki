@@ -1,0 +1,16 @@
+{
+  "title": "Data Hub",
+  "timeline": "Timeline",
+  "export": {
+    "title": "Export",
+    "markdown": "Export as Markdown",
+    "json": "Export as JSON",
+    "exporting": "Exporting...",
+    "success": "Export successful",
+    "failed": "Export failed"
+  },
+  "dayDetail": {
+    "items": "items",
+    "noContent": "No content for this day"
+  }
+}

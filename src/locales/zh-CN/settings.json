@@ -1,0 +1,73 @@
+{
+  "title": "设置",
+  "sections": {
+    "appearance": "外观",
+    "capture": "采集",
+    "insights": "洞察",
+    "ai": "AI",
+    "connection": "连接",
+    "storage": "存储",
+    "language": "语言"
+  },
+  "theme": {
+    "label": "主题",
+    "light": "浅色",
+    "dark": "深色",
+    "system": "跟随系统"
+  },
+  "language": {
+    "label": "界面语言",
+    "system": "跟随系统",
+    "zh-CN": "中文",
+    "en-US": "English",
+    "description": "切换界面显示语言"
+  },
+  "capture": {
+    "enabled": "启用采集",
+    "mode": "采集模式",
+    "auto": "自动保存",
+    "confirm": "确认后保存",
+    "bubbleStyle": "气泡样式",
+    "circle": "圆形",
+    "bar": "条形",
+    "bubblePosition": "气泡位置",
+    "positions": {
+      "bottom-right": "右下",
+      "bottom-center": "下方居中",
+      "bottom-left": "左下",
+      "top-right": "右上",
+      "top-center": "上方居中",
+      "top-left": "左上"
+    },
+    "defaultAction": "默认操作",
+    "defaultSave": "默认保存",
+    "defaultDismiss": "默认忽略",
+    "countdown": "倒计时",
+    "countdownUnit": "秒",
+    "sensitiveFilter": "敏感信息过滤",
+    "urlReading": "网页内容读取"
+  },
+  "ai": {
+    "provider": "AI 提供商",
+    "model": "模型",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "输入 API Key",
+    "oauthLogin": "OAuth 登录",
+    "oauthLoggedIn": "已登录",
+    "oauthLogout": "退出登录",
+    "testConnection": "测试连接",
+    "testSuccess": "连接成功",
+    "testFailed": "连接失败",
+    "autoSelect": "Auto (智能选择)"
+  },
+  "insights": {
+    "interval": "分析间隔",
+    "intervalUnit": "天"
+  },
+  "storage": {
+    "totalItems": "总条目数",
+    "diskUsage": "磁盘占用",
+    "screenshotDir": "截图目录",
+    "unit": "MB"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "nav": {
+    "content": "内容",
+    "wiki": "知识",
+    "digest": "洞察",
+    "settings": "设置"
+  },
+  "action": {
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "confirm": "确认",
+    "retry": "重试",
+    "close": "关闭",
+    "copy": "复制",
+    "search": "搜索",
+    "refresh": "刷新",
+    "generate": "生成",
+    "regenerate": "重新生成",
+    "export": "导出",
+    "back": "返回",
+    "edit": "编辑",
+    "loading": "加载中...",
+    "noData": "暂无数据"
+  },
+  "time": {
+    "justNow": "刚刚",
+    "minutesAgo": "{{count}}分钟前",
+    "hoursAgo": "{{count}}小时前",
+    "daysAgo": "{{count}}天前",
+    "today": "今天",
+    "yesterday": "昨天",
+    "thisWeek": "本周",
+    "lastWeek": "上周"
+  },
+  "contentType": {
+    "text": "文本",
+    "image": "图片",
+    "url": "链接",
+    "mixed": "混合"
+  },
+  "error": {
+    "loadFailed": "加载失败",
+    "saveFailed": "保存失败",
+    "networkError": "网络错误",
+    "unknown": "未知错误",
+    "readFailed": "读取失败"
+  }
+}

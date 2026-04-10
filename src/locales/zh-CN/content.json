@@ -1,0 +1,26 @@
+{
+  "title": "内容",
+  "filter": {
+    "all": "全部",
+    "text": "文本",
+    "image": "图片",
+    "url": "链接"
+  },
+  "card": {
+    "summary": "摘要",
+    "tags": "标签",
+    "source": "来自",
+    "compileToWiki": "入库知识",
+    "compiledToWiki": "已入库",
+    "readFailed": "[读取失败]",
+    "noContent": "无内容",
+    "analyzing": "分析中...",
+    "regenerateSummary": "重新生成摘要",
+    "delete": "删除",
+    "deleteConfirm": "确定要删除这条内容吗？",
+    "userNote": "备注"
+  },
+  "empty": "还没有采集任何内容",
+  "emptyHint": "复制文本、截图或保存链接，内容会自动出现在这里",
+  "searchPlaceholder": "搜索内容..."
+}
