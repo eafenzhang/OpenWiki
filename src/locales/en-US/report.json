@@ -70,5 +70,20 @@
   },
   "noData": "No data",
   "dayLabels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-  "weekPrefix": ""
+  "weekPrefix": "",
+  "linkList": {
+    "empty": "No links this week",
+    "count": "{{count}} links",
+    "unknownLink": "Unknown link"
+  },
+  "textList": {
+    "empty": "No text content this week",
+    "count": "{{count}} texts",
+    "collapse": "Collapse",
+    "expand": "Expand"
+  },
+  "imageList": {
+    "empty": "No images this week",
+    "count": "{{count}} images"
+  }
 }

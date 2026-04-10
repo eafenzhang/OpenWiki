@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import type { CapturedContent } from "../../types/content";
 
 interface CompactLinkListProps {
@@ -6,10 +7,12 @@ interface CompactLinkListProps {
 }
 
 export function CompactLinkList({ items }: CompactLinkListProps) {
+  const { t } = useTranslation("report");
+
   if (items.length === 0) {
     return (
       <div className="text-center py-8 text-xs text-gray-400 dark:text-slate-500">
-        本周没有链接内容
+        {t("linkList.empty")}
       </div>
     );
   }
@@ -22,7 +25,7 @@ export function CompactLinkList({ items }: CompactLinkListProps) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-2.56a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.343 8.28" />
         </svg>
         <span className="text-[11px] font-medium text-gray-500 dark:text-slate-400">
-          {items.length} 个链接
+          {t("linkList.count", { count: items.length })}
         </span>
       </div>
 
@@ -116,7 +119,7 @@ function extractTitle(item: CapturedContent): string {
     const firstLine = item.raw_text.split("\n")[0].trim();
     return firstLine.length > 80 ? firstLine.slice(0, 80) + "..." : firstLine;
   }
-  return item.source_url || "未知链接";
+  return item.source_url || "Unknown";
 }
 
 function extractDomain(url: string): string | null {

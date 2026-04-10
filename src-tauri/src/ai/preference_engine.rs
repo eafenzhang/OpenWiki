@@ -183,8 +183,8 @@ pub fn update_preferences(
     // Get the content item
     let content = repo
         .get_content_by_id(content_id)
-        .map_err(|e| format!("获取内容失败: {}", e))?
-        .ok_or_else(|| format!("未找到内容: {}", content_id))?;
+        .map_err(|e| format!("Failed to get content: {}", e))?
+        .ok_or_else(|| format!("Content not found: {}", content_id))?;
 
     let raw_text = content.raw_text.unwrap_or_default();
     if raw_text.is_empty() {

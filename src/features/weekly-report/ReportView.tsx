@@ -22,7 +22,6 @@ import type { CapturedContent } from "../../types/content";
 
 export function ReportView() {
   const { t } = useTranslation("report");
-  const { t: tc } = useTranslation("common");
   const {
     currentReport,
     reportList,

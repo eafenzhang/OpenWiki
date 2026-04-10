@@ -100,14 +100,14 @@ fn write_content_item(md: &mut String, item: &CapturedContent, export_dir: &Path
     // Tags
     if let Some(tags) = &item.tags {
         if !tags.is_empty() {
-            md.push_str(&format!("**标签**: {}\n\n", tags));
+            md.push_str(&format!("**Tags**: {}\n\n", tags));
         }
     }
 
     // Source URL (for link type)
     if let Some(url) = &item.source_url {
         if !url.is_empty() {
-            md.push_str(&format!("**链接**: [{}]({})\n\n", url, url));
+            md.push_str(&format!("**Link**: [{}]({})\n\n", url, url));
         }
     }
 
@@ -135,12 +135,12 @@ fn write_content_item(md: &mut String, item: &CapturedContent, export_dir: &Path
         if !text.is_empty() {
             match item.content_type {
                 ContentType::Image => {
-                    md.push_str("**OCR 识别文本**:\n\n");
+                    md.push_str("**OCR Text**:\n\n");
                     md.push_str(text);
                     md.push_str("\n\n");
                 }
                 ContentType::Url => {
-                    md.push_str("**原文内容**:\n\n");
+                    md.push_str("**Original Content**:\n\n");
                     md.push_str(text);
                     md.push_str("\n\n");
                 }
@@ -155,7 +155,7 @@ fn write_content_item(md: &mut String, item: &CapturedContent, export_dir: &Path
     // User note
     if let Some(note) = &item.user_note {
         if !note.is_empty() {
-            md.push_str(&format!("> **备注**: {}\n\n", note));
+            md.push_str(&format!("> **Note**: {}\n\n", note));
         }
     }
 
@@ -253,7 +253,7 @@ pub fn export_all_single_file(
     export_dir: &Path,
 ) -> Result<(PathBuf, usize), Box<dyn std::error::Error>> {
     let dates = repo.get_dates_with_content()?;
-    export_dates_to_single_file(&dates, repo, export_dir, "OpenWiki-全部内容")
+    export_dates_to_single_file(&dates, repo, export_dir, "OpenWiki-All-Content")
 }
 
 /// Export a date range into a single markdown file, grouped by date.
@@ -269,7 +269,7 @@ pub fn export_range_single_file(
         .into_iter()
         .filter(|(d, _)| d.as_str() >= start && d.as_str() <= end)
         .collect();
-    let filename = format!("OpenWiki-{}-至-{}", start, end);
+    let filename = format!("OpenWiki-{}-to-{}", start, end);
     export_dates_to_single_file(&filtered, repo, export_dir, &filename)
 }
 
@@ -300,7 +300,7 @@ fn export_dates_to_single_file(
     }
 
     if md.is_empty() {
-        return Err("没有可导出的内容".into());
+        return Err("No content to export".into());
     }
 
     let file_path = export_dir.join(format!("{}.md", filename));
