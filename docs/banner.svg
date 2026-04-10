@@ -1,52 +1,36 @@
-<svg width="1200" height="300" viewBox="0 0 1200 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="1200" height="260" viewBox="0 0 1200 260" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="300" gradientUnits="userSpaceOnUse">
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="260" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#FFF7ED"/>
       <stop offset="100%" stop-color="#FFEDD5"/>
     </linearGradient>
   </defs>
 
   <!-- Background -->
-  <rect width="1200" height="300" rx="16" fill="url(#bg)"/>
+  <rect width="1200" height="260" rx="16" fill="url(#bg)"/>
 
   <!-- Decorative dots -->
-  <circle cx="80" cy="60" r="6" fill="#F97316" opacity="0.15"/>
-  <circle cx="120" cy="90" r="4" fill="#F97316" opacity="0.10"/>
-  <circle cx="1100" cy="80" r="8" fill="#F97316" opacity="0.12"/>
-  <circle cx="1050" cy="50" r="4" fill="#F97316" opacity="0.08"/>
-  <circle cx="150" cy="240" r="5" fill="#F97316" opacity="0.10"/>
-  <circle cx="1080" cy="230" r="6" fill="#F97316" opacity="0.12"/>
+  <circle cx="90" cy="55" r="5" fill="#F97316" opacity="0.12"/>
+  <circle cx="135" cy="85" r="3" fill="#F97316" opacity="0.08"/>
+  <circle cx="1090" cy="65" r="6" fill="#F97316" opacity="0.10"/>
+  <circle cx="1040" cy="42" r="3" fill="#F97316" opacity="0.06"/>
+  <circle cx="110" cy="210" r="4" fill="#F97316" opacity="0.08"/>
+  <circle cx="1070" cy="200" r="5" fill="#F97316" opacity="0.10"/>
 
   <!-- Logo circle -->
-  <circle cx="520" cy="120" r="36" fill="#F97316"/>
-  <text x="520" y="133" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="28" fill="white">W</text>
+  <circle cx="556" cy="80" r="32" fill="#F97316"/>
+  <text x="556" y="91" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="26" fill="white">W</text>
 
-  <!-- Title -->
-  <text x="572" y="114" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="48" fill="#1C1917">Open</text>
-  <text x="692" y="114" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="48" fill="#F97316">Wiki</text>
+  <!-- Title: "Open" in dark, "Wiki" in orange -->
+  <text x="600" y="91" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="44" fill="#1C1917">Open</text>
+  <text x="714" y="91" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="44" fill="#F97316">Wiki</text>
 
   <!-- Subtitle -->
-  <text x="600" y="148" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="400" font-size="13" fill="#A8A29E" letter-spacing="3">MAC DESKTOP AI KNOWLEDGE MANAGER</text>
+  <text x="600" y="130" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="500" font-size="16" fill="#78716C">自动捕获 · 智能整理 · 深度洞察</text>
 
-  <!-- Tagline -->
-  <text x="600" y="200" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="500" font-size="20" fill="#78716C">自动捕获  ·  智能整理  ·  深度洞察</text>
+  <!-- Divider line -->
+  <line x1="480" y1="155" x2="720" y2="155" stroke="#F97316" stroke-opacity="0.2" stroke-width="1"/>
 
-  <!-- Tech pills -->
-  <rect x="370" y="235" width="70" height="26" rx="13" fill="#F97316" opacity="0.1"/>
-  <text x="405" y="252" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="12" fill="#EA580C">Tauri 2</text>
-
-  <rect x="455" y="235" width="60" height="26" rx="13" fill="#F97316" opacity="0.1"/>
-  <text x="485" y="252" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="12" fill="#EA580C">React</text>
-
-  <rect x="530" y="235" width="55" height="26" rx="13" fill="#F97316" opacity="0.1"/>
-  <text x="557" y="252" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="12" fill="#EA580C">Rust</text>
-
-  <rect x="600" y="235" width="65" height="26" rx="13" fill="#F97316" opacity="0.1"/>
-  <text x="632" y="252" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="12" fill="#EA580C">SQLite</text>
-
-  <rect x="680" y="235" width="40" height="26" rx="13" fill="#F97316" opacity="0.1"/>
-  <text x="700" y="252" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="12" fill="#EA580C">AI</text>
-
-  <rect x="735" y="235" width="90" height="26" rx="13" fill="#F97316" opacity="0.1"/>
-  <text x="780" y="252" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="12" fill="#EA580C">Privacy First</text>
+  <!-- Tech tags -->
+  <text x="600" y="190" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="400" font-size="13" fill="#A8A29E" letter-spacing="2">TAURI 2  ·  REACT  ·  RUST  ·  SQLITE  ·  PRIVACY FIRST</text>
 </svg>
