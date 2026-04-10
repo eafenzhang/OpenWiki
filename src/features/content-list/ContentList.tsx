@@ -67,6 +67,17 @@ export function ContentList() {
     return () => { unlisten.then((fn) => fn()); };
   }, [loadContent]);
 
+  // Listen for AI clean content completion — reload to show cleaned article
+  useEffect(() => {
+    const unlisten = listen<string>(
+      "content:clean-ready",
+      (_event) => {
+        loadContent();
+      }
+    );
+    return () => { unlisten.then((fn) => fn()); };
+  }, [loadContent]);
+
   // Listen for AI summary/tags completion — reload to show tags and summary
   useEffect(() => {
     const unlisten = listen<string>(
