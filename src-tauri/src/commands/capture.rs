@@ -787,7 +787,7 @@ pub fn spawn_summary_task(
             .flatten()
             .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
 
-        // 发送完整内容给 AI（上限 5000 字，覆盖绝大多数文章）
+        // Send full content to AI (up to 5000 chars, covers most articles)
         let content_for_ai: String = text.chars().take(5000).collect();
         let prompt = format!(
             "通读以下全文，返回JSON格式，包含三个字段：\n\
@@ -815,7 +815,7 @@ pub fn spawn_summary_task(
                 "You are an AI assistant that analyzes content and returns JSON.",
                 &prompt,
                 0.5,
-                false, // 摘要，不是深度分析
+                false, // summary, not deep analysis
             )
             .await
             {
@@ -853,7 +853,7 @@ pub fn spawn_summary_task(
         // Try Gemini OAuth if provider is google
         if provider_str == "google" {
             if let Some(result) = crate::ai::attention_analyzer::try_gemini_call(
-                db.clone(), "", &prompt, 0.5, false, // 摘要，不是深度分析
+                db.clone(), "", &prompt, 0.5, false, // summary, not deep analysis
             ).await {
                 match result {
                     Ok(raw) => {

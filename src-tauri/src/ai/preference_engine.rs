@@ -219,7 +219,7 @@ pub fn update_preferences(
     // Update each keyword as a topic preference
     for keyword in &keywords {
         if let Err(e) = repo.update_preference(keyword, weight_delta) {
-            log::error!("更新偏好失败 ({}): {}", keyword, e);
+            log::error!("Failed to update preference ({}): {}", keyword, e);
         }
     }
 
@@ -233,7 +233,7 @@ pub fn get_preference_summary(db: Arc<Database>, locale: &str) -> String {
     let preferences = match repo.get_all_preferences() {
         Ok(prefs) => prefs,
         Err(e) => {
-            log::error!("获取用户偏好失败: {}", e);
+            log::error!("Failed to get user preferences: {}", e);
             return String::new();
         }
     };
