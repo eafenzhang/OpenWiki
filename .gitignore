@@ -34,3 +34,6 @@ dist-ssr
 
 # Claude Code local settings (contains user-specific paths)
 .claude/settings.local.json
+
+# Internal planning docs (not for public repo)
+docs/superpowers/
