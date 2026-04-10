@@ -7,6 +7,8 @@ import type { CapturedContent } from "../../types/content";
 import { deleteContent, retryUrlFetch } from "../../services/storageService";
 import { compileContentToWiki, getContentWikiPages } from "../../services/wikiService";
 
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useContentStore } from "../../stores/contentStore";
 import { useDataHubStore } from "../../stores/dataHubStore";
 import { ImagePreview } from "./ImagePreview";
@@ -91,9 +93,10 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
   };
 
   const handleCopy = async () => {
-    if (!content.raw_text) return;
+    const textToCopy = content.clean_content || content.raw_text;
+    if (!textToCopy) return;
     try {
-      await navigator.clipboard.writeText(content.raw_text);
+      await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch (e) {
@@ -622,7 +625,11 @@ export function FullTextOverlay({
   const isImage = content.content_type === "image";
   const isUrl = content.content_type === "url";
   // For images, prefer ocrText over content.raw_text
-  const displayText = isImage ? (ocrText || content.raw_text) : content.raw_text;
+  // Prefer clean_content for URL articles, fallback to raw_text
+  const displayText = isImage
+    ? (ocrText || content.raw_text)
+    : (content.clean_content || content.raw_text);
+  const hasCleanContent = !!content.clean_content;
   // Lock background scroll
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -767,7 +774,13 @@ export function FullTextOverlay({
                       <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium px-2 py-0.5 rounded-md bg-amber-500/10">识别文字</span>
                     </div>
                   )}
-                  <FormattedText text={displayText} />
+                  {hasCleanContent ? (
+                    <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-semibold prose-p:leading-relaxed prose-a:text-orange-500">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayText}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <FormattedText text={displayText} />
+                  )}
                 </article>
               )}
               {/* No text fallback for images */}

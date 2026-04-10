@@ -207,6 +207,20 @@ impl Database {
             log::info!("Migration 011 applied: added source_message_id to wiki_pages");
         }
 
+        // Migration 012: Add clean_content column to captured_content
+        let has_clean_content: bool = conn
+            .prepare(
+                "SELECT COUNT(*) FROM pragma_table_info('captured_content') WHERE name='clean_content'",
+            )?
+            .query_row([], |row| row.get::<_, i32>(0))
+            .map(|c| c > 0)
+            .unwrap_or(false);
+
+        if !has_clean_content {
+            conn.execute_batch("ALTER TABLE captured_content ADD COLUMN clean_content TEXT;")?;
+            log::info!("Migration 012 applied: added clean_content column");
+        }
+
         log::info!("Database migrations completed successfully");
         Ok(())
     }

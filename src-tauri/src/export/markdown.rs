@@ -129,7 +129,9 @@ fn write_content_item(md: &mut String, item: &CapturedContent, export_dir: &Path
     }
 
     // Full original text / OCR text / fetched URL content
-    if let Some(text) = &item.raw_text {
+    // Prefer clean_content (AI-cleaned) over raw_text for URL content
+    let display_text = item.clean_content.as_ref().or(item.raw_text.as_ref());
+    if let Some(text) = display_text {
         if !text.is_empty() {
             match item.content_type {
                 ContentType::Image => {

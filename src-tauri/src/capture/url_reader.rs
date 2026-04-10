@@ -1447,6 +1447,10 @@ fn strip_html_to_text(html: &str) -> String {
     let mut in_tag = false;
     let mut in_script = false;
     let mut in_style = false;
+    let mut in_nav = false;
+    let mut in_header = false;
+    let mut in_footer = false;
+    let mut in_aside = false;
 
     let bytes = content_html.as_bytes();
     let len = bytes.len();
@@ -1456,17 +1460,21 @@ fn strip_html_to_text(html: &str) -> String {
         let b = bytes[i];
         if b == b'<' {
             in_tag = true;
-            // Check for <script or <style
             let upcoming = &content_html[i..std::cmp::min(i + 20, len)].to_lowercase();
-            if upcoming.starts_with("<script") {
-                in_script = true;
-            } else if upcoming.starts_with("</script") {
-                in_script = false;
-            } else if upcoming.starts_with("<style") {
-                in_style = true;
-            } else if upcoming.starts_with("</style") {
-                in_style = false;
-            }
+            // Track skip zones: nav, header, footer, aside
+            if upcoming.starts_with("<nav") { in_nav = true; }
+            else if upcoming.starts_with("</nav") { in_nav = false; }
+            else if upcoming.starts_with("<header") { in_header = true; }
+            else if upcoming.starts_with("</header") { in_header = false; }
+            else if upcoming.starts_with("<footer") { in_footer = true; }
+            else if upcoming.starts_with("</footer") { in_footer = false; }
+            else if upcoming.starts_with("<aside") { in_aside = true; }
+            else if upcoming.starts_with("</aside") { in_aside = false; }
+            // Track script/style
+            else if upcoming.starts_with("<script") { in_script = true; }
+            else if upcoming.starts_with("</script") { in_script = false; }
+            else if upcoming.starts_with("<style") { in_style = true; }
+            else if upcoming.starts_with("</style") { in_style = false; }
             // Block-level tags → newline
             if upcoming.starts_with("<br")
                 || upcoming.starts_with("</p")
@@ -1487,7 +1495,7 @@ fn strip_html_to_text(html: &str) -> String {
             i += 1;
             continue;
         }
-        if !in_tag && !in_script && !in_style {
+        if !in_tag && !in_script && !in_style && !in_nav && !in_header && !in_footer && !in_aside {
             result.push(b as char);
         }
         i += 1;

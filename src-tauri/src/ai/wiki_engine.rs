@@ -19,7 +19,11 @@ pub fn compute_content_hash(content: &CapturedContent) -> String {
     use std::hash::{Hash, Hasher};
 
     let mut hasher = DefaultHasher::new();
-    content.raw_text.as_deref().unwrap_or("").hash(&mut hasher);
+    // Prefer clean_content for hash computation — ensures re-compilation when cleaned
+    let text = content.clean_content.as_deref()
+        .or(content.raw_text.as_deref())
+        .unwrap_or("");
+    text.hash(&mut hasher);
     content.summary.as_deref().unwrap_or("").hash(&mut hasher);
     content.tags.as_deref().unwrap_or("").hash(&mut hasher);
     content.digest.as_deref().unwrap_or("").hash(&mut hasher);
@@ -168,7 +172,7 @@ pub async fn assess_content(
     let system = wiki_prompts::assessment_system_prompt();
     let user = wiki_prompts::assessment_user_message(
         content.content_type.as_str(),
-        content.raw_text.as_deref().unwrap_or(""),
+        content.clean_content.as_deref().or(content.raw_text.as_deref()).unwrap_or(""),
         content.summary.as_deref().unwrap_or(""),
         content.user_note.as_deref().unwrap_or(""),
         content.source_url.as_deref().unwrap_or(""),
@@ -203,7 +207,7 @@ pub async fn compile_content(
 ) -> Result<Vec<String>, String> {
     let repo = Repository::new(db.clone());
     let current_hash = compute_content_hash(content);
-    let content_text = content.raw_text.as_deref().unwrap_or("");
+    let content_text = content.clean_content.as_deref().or(content.raw_text.as_deref()).unwrap_or("");
     let content_summary = content.summary.as_deref().unwrap_or("");
     let content_tags = content.tags.as_deref().unwrap_or("");
     let user_note = content.user_note.as_deref().unwrap_or("");

@@ -219,6 +219,7 @@ pub fn save_content_auto(
         digest: None,
         wiki_compile_hash: None,
         wiki_assessed_hash: None,
+        clean_content: None,
     };
 
     repo.save_content(&content).map_err(|e| e.to_string())?;
@@ -511,6 +512,12 @@ pub async fn retry_url_fetch(
                         result.content.len()
                     );
                     spawn_summary_task(
+                        db_for_summary.clone(),
+                        app.clone(),
+                        content_id.clone(),
+                        result.content.clone(),
+                    );
+                    spawn_clean_content_task(
                         db_for_summary,
                         app.clone(),
                         content_id.clone(),
@@ -689,6 +696,13 @@ fn spawn_auto_url_fetch(app: &tauri::AppHandle, db: &Arc<Database>, content: &Ca
                         result.content.len()
                     );
                     spawn_summary_task(
+                        db_for_summary.clone(),
+                        app_clone.clone(),
+                        content_id.clone(),
+                        result.content.clone(),
+                    );
+                    // Trigger AI content cleaning (independent from summary)
+                    spawn_clean_content_task(
                         db_for_summary,
                         app_clone.clone(),
                         content_id.clone(),
@@ -949,6 +963,154 @@ fn extract_summary_tags_digest(raw: &str) -> (String, Vec<String>, String) {
         .trim_matches('「')
         .trim_matches('」');
     (stripped.trim().to_string(), vec![], String::new())
+}
+
+/// Spawn an async task to clean URL article content via AI.
+/// Only called for URL content AFTER the article body has been fetched.
+/// Completely independent from the summary task.
+pub fn spawn_clean_content_task(
+    db: Arc<crate::storage::database::Database>,
+    app: tauri::AppHandle,
+    content_id: String,
+    raw_text: String,
+) {
+    use tauri::Emitter;
+    // Need substantial text to clean (bare URLs are too short)
+    if raw_text.trim().len() < 200 {
+        return;
+    }
+
+    // Check if feature is enabled
+    let repo_check = crate::storage::repository::Repository::new(db.clone());
+    let enabled = repo_check
+        .get_setting("clean_content_enabled")
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| "true".to_string())
+        == "true";
+    if !enabled {
+        return;
+    }
+
+    tauri::async_runtime::spawn(async move {
+        let repo = crate::storage::repository::Repository::new(db.clone());
+
+        let provider_str = repo
+            .get_setting("ai_provider")
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| "anthropic".to_string());
+
+        let provider_key = format!("ai_api_key_{}", provider_str);
+        let api_key = repo
+            .get_setting(&provider_key)
+            .ok()
+            .flatten()
+            .or_else(|| repo.get_setting("ai_api_key").ok().flatten())
+            .unwrap_or_default();
+
+        if api_key.is_empty() {
+            // Try OAuth paths
+            if provider_str == "openai" {
+                if let Some(result) = crate::ai::attention_analyzer::try_codex_call(
+                    db.clone(),
+                    "You extract article body from noisy webpage text. Output clean Markdown only.",
+                    &build_clean_prompt(&raw_text),
+                    0.3,
+                    false,
+                )
+                .await
+                {
+                    if let Ok(cleaned) = result {
+                        save_clean_content(&repo, &app, &content_id, &cleaned);
+                    }
+                }
+                return;
+            }
+            if provider_str == "google" {
+                if let Some(result) = crate::ai::attention_analyzer::try_gemini_call(
+                    db.clone(),
+                    "You extract article body from noisy webpage text. Output clean Markdown only.",
+                    &build_clean_prompt(&raw_text),
+                    0.3,
+                    false,
+                )
+                .await
+                {
+                    if let Ok(cleaned) = result {
+                        save_clean_content(&repo, &app, &content_id, &cleaned);
+                    }
+                }
+                return;
+            }
+            return;
+        }
+
+        let model = repo
+            .get_setting("ai_model")
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
+
+        let provider = crate::ai::attention_analyzer::AnalysisProvider::from_str(&provider_str);
+        match crate::ai::attention_analyzer::call_analysis_api(
+            &provider,
+            &api_key,
+            &model,
+            "You extract article body from noisy webpage text. Output clean Markdown only.",
+            &build_clean_prompt(&raw_text),
+            4096,
+        )
+        .await
+        {
+            Ok(cleaned) => {
+                save_clean_content(&repo, &app, &content_id, &cleaned);
+            }
+            Err(e) => {
+                log::warn!("Clean content generation failed for {}: {}", content_id, e);
+            }
+        }
+    });
+}
+
+fn build_clean_prompt(raw_text: &str) -> String {
+    let content_for_ai: String = raw_text.chars().take(15000).collect();
+    format!(
+        "以下是从网页抓取的文本，包含导航栏、菜单、页脚等无关内容。\n\
+         请提取文章正文，输出干净的 Markdown 格式。\n\n\
+         要求：\n\
+         - 只保留文章正文内容（标题、段落、列表、引用等）\n\
+         - 删除导航菜单、页头页脚、Cookie提示、广告、推荐链接等\n\
+         - 保留文章中所有语言（不要翻译，如果有中英双语就保留双语）\n\
+         - 用 Markdown 格式组织：# 标题、段落分隔、列表、> 引用等\n\
+         - 保留文章全文，不要缩写或总结\n\
+         - 只输出 Markdown 正文，不要加任何解释\n\n\
+         网页文本：\n{}",
+        content_for_ai
+    )
+}
+
+fn save_clean_content(
+    repo: &crate::storage::repository::Repository,
+    app: &tauri::AppHandle,
+    content_id: &str,
+    cleaned: &str,
+) {
+    use tauri::Emitter;
+    let trimmed = cleaned.trim();
+    if trimmed.len() < 50 {
+        log::warn!("Clean content too short for {}, skipping", content_id);
+        return;
+    }
+    match repo.update_clean_content(content_id, trimmed) {
+        Ok(()) => {
+            let _ = app.emit("content:clean-ready", content_id);
+            log::info!("Clean content saved for {} ({} chars)", content_id, trimmed.len());
+        }
+        Err(e) => {
+            log::warn!("Failed to save clean content for {}: {}", content_id, e);
+        }
+    }
 }
 
 /// Close (destroy) the bubble window completely.
