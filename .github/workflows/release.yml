@@ -42,14 +42,24 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'OpenWiki ${{ github.ref_name }}'
           releaseBody: |
+            OpenWiki ${{ github.ref_name }} Released!
+
+            ## Installation (macOS)
+            1. Download the `.dmg` file
+            2. Open the DMG and drag OpenWiki into the Applications folder
+            3. Open Terminal and run `xattr -cr /Applications/OpenWiki.app` to allow the app to run
+            4. Launch the app and click "Allow" in the authorization prompt
+            5. Go to Settings → AI to configure your AI provider
+
+            ---
+
             OpenWiki ${{ github.ref_name }} 发布！
 
             ## 安装说明（macOS）
-            1. 下载 `.dmg` 文件
-            2. 打开 DMG，将 OpenWiki 拖入 Applications 文件夹
-            3. 首次打开时，如果提示"无法验证开发者"：
-               - 打开 **系统设置 → 隐私与安全性**
-               - 找到 OpenWiki 的提示，点击 **仍要打开**
+            1. 打开 `.dmg`，将 OpenWiki 拖入「应用程序」文件夹
+            2. **打开终端，执行 `xattr -cr /Applications/OpenWiki.app` ，允许应用运行**
+            3. 运行应用，在弹出的授权窗口点击"允许"
+            4. 在应用的"设置"->"AI"中配置 AI 提供商信息
           releaseDraft: false
           prerelease: false
           args: --target aarch64-apple-darwin
