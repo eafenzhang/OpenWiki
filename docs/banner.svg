@@ -1,0 +1,52 @@
+<svg width="1200" height="300" viewBox="0 0 1200 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF7ED"/>
+      <stop offset="100%" stop-color="#FFEDD5"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="300" rx="16" fill="url(#bg)"/>
+
+  <!-- Decorative dots -->
+  <circle cx="80" cy="60" r="6" fill="#F97316" opacity="0.15"/>
+  <circle cx="120" cy="90" r="4" fill="#F97316" opacity="0.10"/>
+  <circle cx="1100" cy="80" r="8" fill="#F97316" opacity="0.12"/>
+  <circle cx="1050" cy="50" r="4" fill="#F97316" opacity="0.08"/>
+  <circle cx="150" cy="240" r="5" fill="#F97316" opacity="0.10"/>
+  <circle cx="1080" cy="230" r="6" fill="#F97316" opacity="0.12"/>
+
+  <!-- Logo circle -->
+  <circle cx="520" cy="120" r="36" fill="#F97316"/>
+  <text x="520" y="133" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="28" fill="white">W</text>
+
+  <!-- Title -->
+  <text x="572" y="114" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="48" fill="#1C1917">Open</text>
+  <text x="692" y="114" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="48" fill="#F97316">Wiki</text>
+
+  <!-- Subtitle -->
+  <text x="600" y="148" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="400" font-size="13" fill="#A8A29E" letter-spacing="3">MAC DESKTOP AI KNOWLEDGE MANAGER</text>
+
+  <!-- Tagline -->
+  <text x="600" y="200" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="500" font-size="20" fill="#78716C">自动捕获  ·  智能整理  ·  深度洞察</text>
+
+  <!-- Tech pills -->
+  <rect x="370" y="235" width="70" height="26" rx="13" fill="#F97316" opacity="0.1"/>
+  <text x="405" y="252" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="12" fill="#EA580C">Tauri 2</text>
+
+  <rect x="455" y="235" width="60" height="26" rx="13" fill="#F97316" opacity="0.1"/>
+  <text x="485" y="252" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="12" fill="#EA580C">React</text>
+
+  <rect x="530" y="235" width="55" height="26" rx="13" fill="#F97316" opacity="0.1"/>
+  <text x="557" y="252" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="12" fill="#EA580C">Rust</text>
+
+  <rect x="600" y="235" width="65" height="26" rx="13" fill="#F97316" opacity="0.1"/>
+  <text x="632" y="252" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="12" fill="#EA580C">SQLite</text>
+
+  <rect x="680" y="235" width="40" height="26" rx="13" fill="#F97316" opacity="0.1"/>
+  <text x="700" y="252" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="12" fill="#EA580C">AI</text>
+
+  <rect x="735" y="235" width="90" height="26" rx="13" fill="#F97316" opacity="0.1"/>
+  <text x="780" y="252" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="12" fill="#EA580C">Privacy First</text>
+</svg>

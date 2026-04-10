@@ -1,10 +1,22 @@
-# OpenWiki
+<p align="center">
+  <img src="docs/banner.svg" alt="OpenWiki Banner" width="100%"/>
+</p>
 
-> Mac 桌面 AI 知识管理工具 — 自动捕获、智能整理、深度洞察
+<p align="center">
+  <a href="https://github.com/kdsz001/xiaoyun/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-F97316?style=flat-square" alt="License"></a>
+  <a href="https://github.com/kdsz001/xiaoyun/releases"><img src="https://img.shields.io/github/v/release/kdsz001/xiaoyun?style=flat-square&color=F97316" alt="Release"></a>
+  <img src="https://img.shields.io/badge/platform-macOS-F97316?style=flat-square" alt="Platform">
+  <img src="https://img.shields.io/badge/PRs-welcome-F97316?style=flat-square" alt="PRs Welcome">
+</p>
 
-OpenWiki 在后台静默监听你的剪贴板，自动收集你浏览、复制的内容碎片，用 AI 将它们编织成结构化的个人知识库，并定期生成洞察报告，帮你看见自己的信息世界。
+<p align="center">
+  OpenWiki 在后台静默监听你的剪贴板，自动收集你浏览、复制的内容碎片，<br>
+  用 AI 将它们编织成结构化的个人知识库，并定期生成洞察报告，帮你看见自己的信息世界。
+</p>
 
-**隐私优先** — 所有数据存储在本地 SQLite，不上传任何云端。
+<p align="center">
+  <b>隐私优先</b> — 所有数据存储在本地 SQLite，不上传任何云端。
+</p>
 
 ## 📸 截图
 
