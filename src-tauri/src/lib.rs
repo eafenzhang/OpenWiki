@@ -138,6 +138,44 @@ pub fn run() {
                     Ok(n) if n > 0 => log::info!("Cleaned {} legacy orphan lint notifications", n),
                     _ => {}
                 }
+
+                // Wipe the old tag-based "related" edges. The old algorithm
+                // connected any two pages sharing a single tag, which exploded
+                // the graph into a nearly-complete mess (988 pairs over 151
+                // pages). The new TF-IDF + cosine-similarity algorithm will
+                // regenerate them in the background task below. One-time safe
+                // migration: deleting edges never loses source data, and the
+                // rebuild task immediately repopulates the graph with meaningful
+                // connections.
+                match repo.delete_edges_by_relation("related") {
+                    Ok(n) if n > 0 => log::info!(
+                        "Cleared {} legacy 'related' edges, scheduling graph rebuild",
+                        n
+                    ),
+                    _ => {}
+                }
+            }
+
+            // --- Rebuild the wiki graph with the new TF-IDF algorithm ---
+            // Runs 5 seconds after startup so the main UI is interactive first.
+            // Non-blocking: failures log a warning but don't affect anything else.
+            {
+                use tauri::Emitter;
+                let state: tauri::State<'_, AppState> = app.state();
+                let db = state.db.clone();
+                let app_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                    match crate::ai::wiki_engine::link_pages_by_shared_tags(db) {
+                        Ok(count) => {
+                            log::info!("Wiki graph rebuilt: {} edges", count);
+                            let _ = app_handle.emit("wiki-graph-rebuilt", count);
+                        }
+                        Err(e) => {
+                            log::warn!("Wiki graph rebuild failed: {}", e);
+                        }
+                    }
+                });
             }
 
             // --- Start capture detector (auto-saves to database) ---

@@ -1654,6 +1654,20 @@ impl Repository {
         Ok(())
     }
 
+    /// Delete all edges of a given relation type. Used when rebuilding the
+    /// tag-based "related" graph from scratch with a new algorithm.
+    pub fn delete_edges_by_relation(
+        &self,
+        relation: &str,
+    ) -> Result<usize, Box<dyn std::error::Error>> {
+        let conn = self.db.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let n = conn.execute(
+            "DELETE FROM wiki_edges WHERE relation = ?1",
+            params![relation],
+        )?;
+        Ok(n)
+    }
+
     // ========== Wiki Compile Log ==========
 
     pub fn acquire_compile_lock(

@@ -322,16 +322,12 @@ pub async fn compile_content(
         repo.add_page_source(&page_id, &content.id, &current_hash)
             .map_err(|e| format!("Failed to save source relation: {}", e))?;
 
-        // Process edges
-        if let Some(edges) = page_json.get("edges").and_then(|v| v.as_array()) {
-            for edge in edges {
-                let target_title = edge.get("target_title").and_then(|v| v.as_str()).unwrap_or("");
-                let relation = edge.get("relation").and_then(|v| v.as_str()).unwrap_or("related");
-                if let Some(target) = find_page_by_title(&repo, target_title)? {
-                    let _ = repo.save_wiki_edge(&page_id, &target.id, relation, 1.0);
-                }
-            }
-        }
+        // Note: we intentionally no longer process an `edges` field from the
+        // AI response. Edges are computed deterministically from tags by
+        // `link_pages_by_shared_tags` (TF-IDF cosine similarity). Keeping
+        // the old AI-generated edges here meant two mechanisms wrote into
+        // the same `relation = 'related'` slot with conflicting weights
+        // (AI: fixed 1.0, TF-IDF: continuous 0.3-0.9), polluting the graph.
 
         touched_ids.push(page_id);
         log::info!("Wiki: created page \"{}\" ({})", page_title, pt);
@@ -408,44 +404,15 @@ pub async fn compile_content(
         repo.add_page_source(page_id, &content.id, &current_hash)
             .map_err(|e| format!("Failed to save source relation: {}", e))?;
 
-        // Process new edges
-        if let Some(edges) = page_json.get("edges").and_then(|v| v.as_array()) {
-            for edge in edges {
-                let target_title = edge.get("target_title").and_then(|v| v.as_str()).unwrap_or("");
-                let relation = edge.get("relation").and_then(|v| v.as_str()).unwrap_or("related");
-                if let Some(target) = find_page_by_title(&repo, target_title)? {
-                    if target.id != page_id {
-                        let _ = repo.save_wiki_edge(page_id, &target.id, relation, 1.0);
-                    }
-                }
-            }
-        }
+        // Note: AI-generated edges are no longer processed here — see the
+        // matching comment in the create branch above. Edges live entirely
+        // in `link_pages_by_shared_tags`, which uses TF-IDF similarity.
 
         touched_ids.push(page_id.to_string());
         log::info!("Wiki: updated page \"{}\"", existing_page.title);
     }
 
     Ok(touched_ids)
-}
-
-/// Find a wiki page by title (approximate match).
-fn find_page_by_title(
-    repo: &Repository,
-    title: &str,
-) -> Result<Option<WikiPage>, String> {
-    if title.is_empty() {
-        return Ok(None);
-    }
-    // Try exact search first
-    let results = repo
-        .search_wiki_pages(title, 1)
-        .map_err(|e| e.to_string())?;
-    if let Some(page) = results.into_iter().find(|p| p.title == title) {
-        return Ok(Some(page));
-    }
-    // Try slug
-    let slug = slugify(title);
-    repo.get_wiki_page_by_slug(&slug).map_err(|e| e.to_string())
 }
 
 /// Auto-compile: assess + compile if worthy. Updates hashes.
@@ -619,53 +586,183 @@ pub fn parse_ai_json_pub(raw: &str) -> Result<serde_json::Value, String> {
     parse_ai_json(raw)
 }
 
-/// Link pages that share tags with bidirectional "related" edges.
-/// Returns the number of edges created/updated.
+/// Link pages into a "related" graph using TF-IDF weighted cosine
+/// similarity over their tags.
+///
+/// The old implementation connected any two pages that shared at least
+/// one tag, which produced an exploding graph (988 pairs over 151 pages
+/// in one real dataset) because common tags like "AI" or "agent" forced
+/// every page touching those topics into a near-complete subgraph.
+///
+/// This version:
+///
+/// 1. Computes an IDF score for every tag — tags that appear on many
+///    pages get a low weight automatically, so there's no manual
+///    "stop word" list to maintain.
+/// 2. Represents each page as a sparse TF-IDF vector over its tags.
+/// 3. Scores every page pair by cosine similarity.
+/// 4. Keeps only pairs with similarity >= SIM_THRESHOLD, and caps each
+///    page at TOP_K neighbors (whichever side picks the edge first —
+///    we dedupe via a canonical (min, max) ordering so each pair lands
+///    as a single undirected edge).
+///
+/// The edge weight stored in the database is the cosine similarity
+/// itself (between 0 and 1), which the frontend can use to modulate
+/// stroke opacity or spring stiffness in the force-directed layout.
+///
+/// Complexity: O(n² · avg_tags_per_page). For n=150 this is a few
+/// hundred thousand hash lookups — well under a second even in debug
+/// builds.
 pub fn link_pages_by_shared_tags(db: Arc<Database>) -> Result<usize, String> {
+    use std::collections::HashMap;
+
+    /// Maximum number of related pages to keep per node. Prevents
+    /// any single page from becoming a super-node even if it's
+    /// legitimately similar to many others.
+    const TOP_K: usize = 8;
+
+    /// Minimum cosine similarity required for two pages to be linked.
+    /// 0.3 corresponds roughly to "meaningful topic overlap after
+    /// down-weighting common tags".
+    const SIM_THRESHOLD: f64 = 0.3;
+
     let repo = Repository::new(db);
     let pages = repo
         .get_all_wiki_pages(1000, 0)
         .map_err(|e| e.to_string())?;
 
-    // Parse and normalize tags for each page
-    let page_tags: Vec<(&str, Vec<String>)> = pages
+    // Parse and normalize tags. A page with no usable tags is excluded
+    // from the graph — there's nothing to compare it against.
+    let page_tags: Vec<(String, Vec<String>)> = pages
         .iter()
         .filter_map(|p| {
             let tags_str = p.tags.as_deref()?;
             let tags: Vec<String> = serde_json::from_str(tags_str).unwrap_or_default();
-            let normalized: Vec<String> = tags
+            let mut normalized: Vec<String> = tags
                 .iter()
                 .map(|t| t.trim().to_lowercase())
                 .filter(|t| !t.is_empty())
                 .collect();
+            normalized.sort();
+            normalized.dedup();
             if normalized.is_empty() {
                 None
             } else {
-                Some((p.id.as_str(), normalized))
+                Some((p.id.clone(), normalized))
             }
         })
         .collect();
 
-    let mut count = 0usize;
+    let n = page_tags.len();
+    if n < 2 {
+        log::info!("Wiki tag-linking: fewer than 2 tagged pages, skipping");
+        return Ok(0);
+    }
 
-    for i in 0..page_tags.len() {
-        for j in (i + 1)..page_tags.len() {
-            let (id_a, tags_a) = &page_tags[i];
-            let (id_b, tags_b) = &page_tags[j];
+    // --- Step 1: IDF for every tag -----------------------------------
+    // IDF(t) = ln((N + 1) / (df(t) + 1)) — rare tags get a higher weight.
+    // Adding 1 to numerator and denominator smooths the distribution
+    // and guarantees a non-negative score even when df == N.
+    let mut doc_freq: HashMap<&str, usize> = HashMap::new();
+    for (_id, tags) in &page_tags {
+        for t in tags {
+            *doc_freq.entry(t.as_str()).or_insert(0) += 1;
+        }
+    }
+    let total = n as f64;
+    let idf: HashMap<&str, f64> = doc_freq
+        .iter()
+        .map(|(t, df)| {
+            let score = ((total + 1.0) / (*df as f64 + 1.0)).ln();
+            (*t, score)
+        })
+        .collect();
 
-            let shared = tags_a.iter().any(|t| tags_b.contains(t));
-            if shared {
-                let _ = repo.save_wiki_edge(id_a, id_b, "related", 1.0);
-                let _ = repo.save_wiki_edge(id_b, id_a, "related", 1.0);
-                count += 2;
+    // --- Step 2: TF-IDF vector per page ------------------------------
+    // Tags are unique per page (we dedup'd above), so TF is always 1
+    // and the vector value is just the IDF of the tag.
+    let vectors: Vec<HashMap<&str, f64>> = page_tags
+        .iter()
+        .map(|(_id, tags)| {
+            tags.iter()
+                .filter_map(|t| idf.get(t.as_str()).map(|w| (t.as_str(), *w)))
+                .collect()
+        })
+        .collect();
+
+    // Precompute norms so cosine similarity is a single dot product.
+    let norms: Vec<f64> = vectors
+        .iter()
+        .map(|v| v.values().map(|w| w * w).sum::<f64>().sqrt())
+        .collect();
+
+    // --- Step 3: pairwise cosine similarity, keep candidates above threshold ---
+    // For each page i, collect its neighbors with sim >= SIM_THRESHOLD,
+    // then keep the TOP_K most similar. The resulting edges from both
+    // sides are merged through a canonical (min_idx, max_idx) tuple
+    // so each unordered pair is inserted exactly once.
+    let mut selected: std::collections::HashSet<(usize, usize)> =
+        std::collections::HashSet::new();
+    let mut edge_weight: HashMap<(usize, usize), f64> = HashMap::new();
+
+    for i in 0..n {
+        if norms[i] == 0.0 {
+            continue;
+        }
+        let mut neighbors: Vec<(usize, f64)> = Vec::new();
+        for j in 0..n {
+            if i == j || norms[j] == 0.0 {
+                continue;
+            }
+            // Iterate over the shorter of the two vectors for efficiency
+            let (shorter, longer) = if vectors[i].len() <= vectors[j].len() {
+                (&vectors[i], &vectors[j])
+            } else {
+                (&vectors[j], &vectors[i])
+            };
+            let dot: f64 = shorter
+                .iter()
+                .filter_map(|(t, w_a)| longer.get(t).map(|w_b| w_a * w_b))
+                .sum();
+            let sim = dot / (norms[i] * norms[j]);
+            if sim >= SIM_THRESHOLD {
+                neighbors.push((j, sim));
+            }
+        }
+        // Keep top-K most similar
+        neighbors.sort_by(|a, b| {
+            b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
+        });
+        neighbors.truncate(TOP_K);
+
+        for (j, sim) in neighbors {
+            let key = if i < j { (i, j) } else { (j, i) };
+            selected.insert(key);
+            // Store the max weight we've seen for this pair (symmetric
+            // in theory, but shielded against numerical drift).
+            let entry = edge_weight.entry(key).or_insert(0.0);
+            if sim > *entry {
+                *entry = sim;
             }
         }
     }
 
+    // --- Step 4: write edges (one row per undirected pair) -----------
+    let mut count = 0usize;
+    for (i, j) in &selected {
+        let (id_a, _) = &page_tags[*i];
+        let (id_b, _) = &page_tags[*j];
+        let w = edge_weight.get(&(*i, *j)).copied().unwrap_or(0.0);
+        let _ = repo.save_wiki_edge(id_a, id_b, "related", w);
+        count += 1;
+    }
+
     log::info!(
-        "Wiki tag-linking: {} edges across {} tagged pages",
+        "Wiki tag-linking: {} undirected edges across {} tagged pages (top-K={}, threshold={})",
         count,
-        page_tags.len()
+        n,
+        TOP_K,
+        SIM_THRESHOLD
     );
     Ok(count)
 }
