@@ -125,6 +125,7 @@ Contributions welcome! Read [CONTRIBUTING.md](CONTRIBUTING.md) for development w
 
 ## Acknowledgments
 
+- [Andrej Karpathy](https://github.com/karpathy) — his [LLM Wiki idea](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) inspired the knowledge base design
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) — YouTube subtitle extraction
 
 ## License
