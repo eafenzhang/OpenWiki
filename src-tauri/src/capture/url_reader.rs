@@ -34,13 +34,19 @@ impl UrlReader {
 
     /// Smart fetch: pick the best method based on URL domain.
     /// Order: platform-specific → Jina Reader → direct HTML (fallback).
-    pub async fn fetch_content(&self, url: &str) -> Result<UrlReadResult, String> {
+    ///
+    /// `locale` controls auto-translation behavior:
+    /// - "zh-CN": auto-translate non-Chinese content to bilingual (original + Chinese)
+    /// - "en-US" or other: keep content in original language, no translation
+    pub async fn fetch_content(&self, url: &str, locale: &str) -> Result<UrlReadResult, String> {
         let raw = self.fetch_content_raw(url).await?;
         // Strip Markdown syntax for clean display
         let clean = strip_markdown(&raw.content);
 
-        // Auto-translate: bilingual (original + Chinese) for non-Chinese content
-        let content = if needs_translation(&clean) {
+        let is_chinese_locale = locale.starts_with("zh");
+
+        // Auto-translate: only in Chinese mode, for non-Chinese content
+        let content = if is_chinese_locale && needs_translation(&clean) {
             log::info!("[Translate] Content is non-Chinese, creating bilingual version...");
             let bilingual = translate_bilingual(&self.http_client, &clean).await;
             log::info!("[Translate] Done, {} chars", bilingual.len());
@@ -49,9 +55,9 @@ impl UrlReader {
             clean
         };
 
-        // Also translate title if needed
+        // Also translate title if in Chinese mode and title needs translation
         let title = if let Some(ref t) = raw.title {
-            if needs_translation(t) {
+            if is_chinese_locale && needs_translation(t) {
                 let translated = translate_chunk(&self.http_client, t)
                     .await
                     .unwrap_or_else(|_| t.clone());

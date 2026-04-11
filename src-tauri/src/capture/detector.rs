@@ -144,7 +144,8 @@ async fn fetch_url_content(content_id: String, url: String, db: Arc<Database>, a
     log::info!("Starting URL fetch task for {} (url={})", content_id, url);
 
     let reader = UrlReader::new();
-    let result = reader.fetch_content(&url).await;
+    let locale = crate::locale::resolve_locale(&db);
+    let result = reader.fetch_content(&url, &locale).await;
 
     match result {
         Ok(result) => {

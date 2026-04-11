@@ -499,7 +499,8 @@ pub async fn retry_url_fetch(
     // Spawn async fetch task
     tauri::async_runtime::spawn(async move {
         let reader = crate::capture::url_reader::UrlReader::new();
-        match reader.fetch_content(&url).await {
+        let locale = crate::locale::resolve_locale(&db);
+        match reader.fetch_content(&url, &locale).await {
             Ok(result) => {
                 let db_for_summary = db.clone();
                 let repo = crate::storage::repository::Repository::new(db);
@@ -683,7 +684,8 @@ fn spawn_auto_url_fetch(app: &tauri::AppHandle, db: &Arc<Database>, content: &Ca
     log::info!("Spawning URL fetch for {} (url={})", content_id, url);
     tauri::async_runtime::spawn(async move {
         let reader = crate::capture::url_reader::UrlReader::new();
-        match reader.fetch_content(&url).await {
+        let locale = crate::locale::resolve_locale(&db_clone);
+        match reader.fetch_content(&url, &locale).await {
             Ok(result) => {
                 let db_for_summary = db_clone.clone();
                 let repo = crate::storage::repository::Repository::new(db_clone);
@@ -787,26 +789,50 @@ pub fn spawn_summary_task(
             .flatten()
             .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
 
+        // Resolve locale for summary language
+        let locale = crate::locale::resolve_locale(&db);
+
         // Send full content to AI (up to 5000 chars, covers most articles)
         let content_for_ai: String = text.chars().take(5000).collect();
-        let prompt = format!(
-            "通读以下全文，返回JSON格式，包含三个字段：\n\
-             1. \"tags\": 2-3个具体标签，必须包含文中的具体名词（人名、公司名、产品名、方法名、术语等）。\n\
-                标签格式：\"具体名词+核心观点\"，让人一看就知道这篇讲了什么。\n\
-                好的标签：\"Musk第一性原理造火箭\"、\"Stripe的开发者体验飞轮\"、\"RAG检索增强生成\"、\"桥水全天候策略对冲\"\n\
-                差的标签：\"创业思维\"、\"产品设计\"、\"AI应用\"、\"投资方法\"（没有具体名词，太泛）\n\
-                每个标签4-12个字，用中文简体（专有名词保留原文）\n\
-             2. \"summary\": 用大白话说这篇内容讲了什么（中文简体，不超过80字）。\n\
-                像朋友转发文章时附的一句话，让人一看就知道要不要点开。\n\
-                不要用书面语、不要用\"探讨\"\"阐述\"\"倡导\"这类词，就正常说话。\n\
-             3. \"digest\": 这篇内容的核心要点总结（中文简体，150-200字）。\n\
-                像一个聪明的朋友帮你读完后告诉你重点。\n\
-                要有结构感：先说核心观点，再说关键论据或例子，最后说结论。\n\
-                不要用\"本文\"\"作者\"这种书面词，直接说内容本身。\n\
-             无论原文是什么语言，都必须用中文简体（专有名词保留原文）。只返回JSON。\n\
-             示例：{{\"tags\":[\"Dalio全天候策略对冲\",\"Shannon再平衡套利\"],\"summary\":\"教你怎么在股市暴跌时抄底，关键是平时得留够现金\",\"digest\":\"投资的核心矛盾是想要高收益又怕亏钱。Dalio的全天候策略用四个桶（股票、长期债、商品、通胀保护债）来分散风险，不管经济好坏都能活着。关键数据：过去30年回撤最大只有3.9%，而纯股票组合最大回撤超过50%。但这个策略牺牲了上涨空间，年化只有9%左右。适合不想操心、愿意接受中等回报的人。\"}}\n\n{}",
-            content_for_ai
-        );
+        let prompt = if crate::locale::is_english(&locale) {
+            format!(
+                "Read the following content and return JSON with three fields:\n\
+                 1. \"tags\": 2-3 specific tags. Each tag MUST contain concrete nouns from the text (names of people, companies, products, methods, technical terms, etc.).\n\
+                    Format: \"Concrete noun + core point\", so the reader instantly knows what the content is about.\n\
+                    Good tags: \"Musk first-principles rockets\", \"Stripe developer experience flywheel\", \"RAG retrieval-augmented generation\", \"Bridgewater all-weather hedge\"\n\
+                    Bad tags: \"startup mindset\", \"product design\", \"AI apps\", \"investment methods\" (no concrete nouns, too generic)\n\
+                    Each tag 2-6 words in English (keep proper nouns in original form)\n\
+                 2. \"summary\": Plain-English explanation of what this content is about (English, under 40 words).\n\
+                    Like a one-line pitch a friend would send when sharing an article, so the reader knows whether to click.\n\
+                    Avoid formal or academic language — write like you're talking to a friend.\n\
+                 3. \"digest\": Core takeaways from the content (English, 80-120 words).\n\
+                    Like a smart friend telling you the key points after reading it for you.\n\
+                    Structure it: core point first, then key evidence or examples, then conclusion.\n\
+                    Don't use phrases like \"the article\" or \"the author\" — speak about the content directly.\n\
+                 Regardless of the source language, write tags/summary/digest in English (keep proper nouns in original form). Return JSON only.\n\
+                 Example: {{\"tags\":[\"Dalio all-weather hedge\",\"Shannon rebalancing arbitrage\"],\"summary\":\"How to buy the dip when markets crash — the key is keeping enough cash on hand\",\"digest\":\"The core tension in investing is wanting high returns without losing money. Dalio's all-weather strategy uses four buckets (stocks, long bonds, commodities, inflation-protected bonds) to diversify risk, surviving any economic regime. Key data: max drawdown over 30 years was only 3.9%, vs over 50% for pure stock portfolios. But the strategy sacrifices upside, averaging 9% annually. Works well for people who don't want to stress and accept moderate returns.\"}}\n\n{}",
+                content_for_ai
+            )
+        } else {
+            format!(
+                "通读以下全文，返回JSON格式，包含三个字段：\n\
+                 1. \"tags\": 2-3个具体标签，必须包含文中的具体名词（人名、公司名、产品名、方法名、术语等）。\n\
+                    标签格式：\"具体名词+核心观点\"，让人一看就知道这篇讲了什么。\n\
+                    好的标签：\"Musk第一性原理造火箭\"、\"Stripe的开发者体验飞轮\"、\"RAG检索增强生成\"、\"桥水全天候策略对冲\"\n\
+                    差的标签：\"创业思维\"、\"产品设计\"、\"AI应用\"、\"投资方法\"（没有具体名词，太泛）\n\
+                    每个标签4-12个字，用中文简体（专有名词保留原文）\n\
+                 2. \"summary\": 用大白话说这篇内容讲了什么（中文简体，不超过80字）。\n\
+                    像朋友转发文章时附的一句话，让人一看就知道要不要点开。\n\
+                    不要用书面语、不要用\"探讨\"\"阐述\"\"倡导\"这类词，就正常说话。\n\
+                 3. \"digest\": 这篇内容的核心要点总结（中文简体，150-200字）。\n\
+                    像一个聪明的朋友帮你读完后告诉你重点。\n\
+                    要有结构感：先说核心观点，再说关键论据或例子，最后说结论。\n\
+                    不要用\"本文\"\"作者\"这种书面词，直接说内容本身。\n\
+                 无论原文是什么语言，都必须用中文简体（专有名词保留原文）。只返回JSON。\n\
+                 示例：{{\"tags\":[\"Dalio全天候策略对冲\",\"Shannon再平衡套利\"],\"summary\":\"教你怎么在股市暴跌时抄底，关键是平时得留够现金\",\"digest\":\"投资的核心矛盾是想要高收益又怕亏钱。Dalio的全天候策略用四个桶（股票、长期债、商品、通胀保护债）来分散风险，不管经济好坏都能活着。关键数据：过去30年回撤最大只有3.9%，而纯股票组合最大回撤超过50%。但这个策略牺牲了上涨空间，年化只有9%左右。适合不想操心、愿意接受中等回报的人。\"}}\n\n{}",
+                content_for_ai
+            )
+        };
 
         // Try Codex OAuth first if provider is openai
         if provider_str == "openai" {
@@ -995,6 +1021,8 @@ pub fn spawn_clean_content_task(
     tauri::async_runtime::spawn(async move {
         let repo = crate::storage::repository::Repository::new(db.clone());
 
+        let locale = crate::locale::resolve_locale(&db);
+
         let provider_str = repo
             .get_setting("ai_provider")
             .ok()
@@ -1015,7 +1043,7 @@ pub fn spawn_clean_content_task(
                 if let Some(result) = crate::ai::attention_analyzer::try_codex_call(
                     db.clone(),
                     "You extract article body from noisy webpage text. Output clean Markdown only.",
-                    &build_clean_prompt(&raw_text),
+                    &build_clean_prompt(&raw_text, &locale),
                     0.3,
                     false,
                 )
@@ -1031,7 +1059,7 @@ pub fn spawn_clean_content_task(
                 if let Some(result) = crate::ai::attention_analyzer::try_gemini_call(
                     db.clone(),
                     "You extract article body from noisy webpage text. Output clean Markdown only.",
-                    &build_clean_prompt(&raw_text),
+                    &build_clean_prompt(&raw_text, &locale),
                     0.3,
                     false,
                 )
@@ -1058,7 +1086,7 @@ pub fn spawn_clean_content_task(
             &api_key,
             &model,
             "You extract article body from noisy webpage text. Output clean Markdown only.",
-            &build_clean_prompt(&raw_text),
+            &build_clean_prompt(&raw_text, &locale),
             4096,
         )
         .await
@@ -1073,21 +1101,37 @@ pub fn spawn_clean_content_task(
     });
 }
 
-fn build_clean_prompt(raw_text: &str) -> String {
+fn build_clean_prompt(raw_text: &str, locale: &str) -> String {
     let content_for_ai: String = raw_text.chars().take(15000).collect();
-    format!(
-        "以下是从网页抓取的文本，包含导航栏、菜单、页脚等无关内容。\n\
-         请提取文章正文，输出干净的 Markdown 格式。\n\n\
-         要求：\n\
-         - 只保留文章正文内容（标题、段落、列表、引用等）\n\
-         - 删除导航菜单、页头页脚、Cookie提示、广告、推荐链接等\n\
-         - 保留文章中所有语言（不要翻译，如果有中英双语就保留双语）\n\
-         - 用 Markdown 格式组织：# 标题、段落分隔、列表、> 引用等\n\
-         - 保留文章全文，不要缩写或总结\n\
-         - 只输出 Markdown 正文，不要加任何解释\n\n\
-         网页文本：\n{}",
-        content_for_ai
-    )
+    if crate::locale::is_english(locale) {
+        format!(
+            "The following is text scraped from a webpage, which contains navigation, menus, footers, and other irrelevant content.\n\
+             Please extract the article body and output it as clean Markdown.\n\n\
+             Requirements:\n\
+             - Keep only the article body content (headings, paragraphs, lists, quotes, etc.)\n\
+             - Remove navigation menus, headers, footers, cookie notices, ads, recommended links\n\
+             - Preserve all languages in the content (don't translate)\n\
+             - Format with Markdown: # headings, paragraph breaks, lists, > quotes\n\
+             - Preserve the full article, don't abbreviate or summarize\n\
+             - Output Markdown only, no explanations\n\n\
+             Webpage text:\n{}",
+            content_for_ai
+        )
+    } else {
+        format!(
+            "以下是从网页抓取的文本，包含导航栏、菜单、页脚等无关内容。\n\
+             请提取文章正文，输出干净的 Markdown 格式。\n\n\
+             要求：\n\
+             - 只保留文章正文内容（标题、段落、列表、引用等）\n\
+             - 删除导航菜单、页头页脚、Cookie提示、广告、推荐链接等\n\
+             - 保留文章中所有语言（不要翻译，如果有中英双语就保留双语）\n\
+             - 用 Markdown 格式组织：# 标题、段落分隔、列表、> 引用等\n\
+             - 保留文章全文，不要缩写或总结\n\
+             - 只输出 Markdown 正文，不要加任何解释\n\n\
+             网页文本：\n{}",
+            content_for_ai
+        )
+    }
 }
 
 fn save_clean_content(
