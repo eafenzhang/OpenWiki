@@ -16,7 +16,7 @@ Thank you for your interest in contributing to OpenWiki! This document will help
 ```bash
 # Clone the repository
 git clone https://github.com/kdsz001/OpenWiki.git
-cd xiaoyun
+cd OpenWiki
 
 # Install frontend dependencies
 npm install
