@@ -588,30 +588,16 @@ pub fn on_content_deleted(
             .map_err(|e| e.to_string())?;
 
         if active > 0 {
-            // Has remaining sources — mark for recompile
+            // Has remaining sources — mark for recompile.
+            // Note: we intentionally do NOT generate a lint result here.
+            // The user just deleted the content themselves, so pestering them
+            // with a "source was deleted" notification on the Insight page is
+            // noise, not signal. The page status change is enough — they can
+            // still see affected pages in the knowledge base list if they care.
             let _ = repo.update_wiki_page_status(page_id, "needs_recompile", confidence);
-            // Get page title for lint message
-            if let Ok(Some(page)) = repo.get_wiki_page_by_id(page_id) {
-                let _ = repo.save_lint_result(
-                    "orphan",
-                    "warning",
-                    &format!("Some sources for \"{}\" have been deleted", page.title),
-                    &format!("Page confidence dropped to {:.0}%, recompile recommended", confidence * 100.0),
-                    &format!("[\"{}\"]", page_id),
-                );
-            }
         } else {
-            // No active sources — tombstone
+            // No active sources — tombstone. Same rationale: no lint generated.
             let _ = repo.update_wiki_page_status(page_id, "draft", 0.3);
-            if let Ok(Some(page)) = repo.get_wiki_page_by_id(page_id) {
-                let _ = repo.save_lint_result(
-                    "orphan",
-                    "critical",
-                    &format!("All sources for \"{}\" have been deleted", page.title),
-                    "Knowledge may be outdated. Consider keeping or deleting this page.",
-                    &format!("[\"{}\"]", page_id),
-                );
-            }
         }
     }
 

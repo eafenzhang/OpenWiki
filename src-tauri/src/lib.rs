@@ -120,6 +120,14 @@ pub fn run() {
                     Ok(n) if n > 0 => log::info!("Cleaned {} stale compile locks", n),
                     _ => {}
                 }
+
+                // Clean up legacy "source deleted" lint notifications from before
+                // we stopped auto-generating them. One-time cleanup — safe to run
+                // on every startup since it only touches open "orphan" lints.
+                match repo.resolve_lint_results_by_type("orphan") {
+                    Ok(n) if n > 0 => log::info!("Cleaned {} legacy orphan lint notifications", n),
+                    _ => {}
+                }
             }
 
             // --- Start capture detector (auto-saves to database) ---

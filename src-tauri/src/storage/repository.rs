@@ -1826,6 +1826,18 @@ impl Repository {
         Ok(())
     }
 
+    /// Batch-resolve all open lint results of a given type.
+    /// Used at app startup to clean up stale "source deleted" notifications
+    /// from before we stopped auto-generating them on content deletion.
+    pub fn resolve_lint_results_by_type(&self, lint_type: &str) -> Result<usize, Box<dyn std::error::Error>> {
+        let conn = self.db.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let n = conn.execute(
+            "UPDATE wiki_lint_results SET status='resolved' WHERE status='open' AND lint_type=?1",
+            params![lint_type],
+        )?;
+        Ok(n)
+    }
+
     /// Recalculate confidence for a page based on its source health.
     pub fn recalculate_page_confidence(&self, page_id: &str) -> Result<f64, Box<dyn std::error::Error>> {
         let (active, total) = self.count_active_sources(page_id)?;
