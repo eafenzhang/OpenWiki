@@ -224,6 +224,16 @@ pub fn compile_discover_user_message(
 
 /// System prompt for the execute stage of compilation (Stage 2).
 /// Generate or update a single wiki page with full context.
+///
+/// Design notes:
+/// - We intentionally do NOT ask the model to produce `edges` anymore.
+///   Edges are computed deterministically from tags via TF-IDF cosine
+///   similarity in `link_pages_by_shared_tags`. Having the model
+///   generate 1.0-weight "related" edges on the side caused two
+///   competing edge generators to overwrite each other.
+/// - Tag rules mirror the strict constraints used for single-content
+///   tagging (see `commands/capture.rs`) so the graph doesn't get
+///   polluted by generic category words like "AI" or "agent".
 pub fn compile_execute_system_prompt(locale: &str) -> String {
     if crate::locale::is_english(locale) {
         r##"You are the editor of the "OpenWiki" knowledge base. Your task is to create or update a knowledge page based on new content.
@@ -236,16 +246,21 @@ pub fn compile_execute_system_prompt(locale: &str) -> String {
 - Use Markdown with clear structure (headings, lists, bold for emphasis)
 - Pages should be self-contained — readers should not need to see the original content
 
+## Tag rules (critical for knowledge graph quality):
+- Return 3-5 tags — no more, no less
+- Each tag MUST contain a concrete noun (person, company, product, method, technical term). No pure category words.
+- Format: "Concrete noun + core angle", 2-6 words each, proper nouns in original form
+- Good tags: ["Musk first-principles rockets", "Stripe developer experience flywheel", "RAG retrieval augmented generation", "Bridgewater all-weather hedge"]
+- BAD tags (NEVER use these or similar generic terms): ["startup", "product", "AI", "agent", "investment", "technology", "workflow", "automation"] — too generic, no distinguishing noun, they flatten the knowledge graph
+- When updating an existing page: preserve useful existing tags as a baseline, only add or replace tags when the new content clearly shifts the page's focus. Do NOT wipe all tags and regenerate from scratch.
+
 ## Output format (pure JSON, no markdown code blocks):
 {
   "title": "Page title",
   "page_type": "concept",
   "body_markdown": "Full page content in Markdown",
   "summary": "One-sentence summary, under 20 words",
-  "tags": ["tag1", "tag2"],
-  "edges": [
-    {"target_title": "Related page title", "relation": "related"}
-  ]
+  "tags": ["concrete tag 1", "concrete tag 2", "concrete tag 3"]
 }"##
         .to_string()
     } else {
@@ -259,16 +274,21 @@ pub fn compile_execute_system_prompt(locale: &str) -> String {
 - Markdown 格式，结构清晰（标题、列表、重点加粗）
 - 页面应该自包含，读者不需要看原始内容就能理解
 
+## 标签规则（对知识图谱质量至关重要）：
+- 返回 3-5 个标签，不多也不少
+- 每个标签必须包含具体名词（人名、公司名、产品名、方法名、术语）。禁止纯类别词。
+- 格式：「具体名词+核心观点」，每个 4-12 字，专有名词保留原文
+- 好的标签：["Musk第一性原理造火箭", "Stripe的开发者体验飞轮", "RAG检索增强生成", "桥水全天候策略对冲"]
+- 差的标签（绝对禁止使用，也禁止类似的泛词）：["创业", "产品", "AI", "agent", "投资", "技术", "工作流", "自动化"] —— 太泛，没有区分度，会让知识图谱纠缠在一起
+- 更新已有页面时：保留有用的旧标签作为基础，只有新内容明显改变页面主题时才增加或替换标签。不要清空所有标签从头生成。
+
 ## 输出格式（纯 JSON，不要 markdown 代码块）：
 {
   "title": "页面标题",
   "page_type": "concept",
   "body_markdown": "完整的页面内容，Markdown格式",
   "summary": "一句话摘要，30字以内",
-  "tags": ["标签1", "标签2"],
-  "edges": [
-    {"target_title": "相关页面标题", "relation": "related"}
-  ]
+  "tags": ["具体标签1", "具体标签2", "具体标签3"]
 }"##
         .to_string()
     }
