@@ -221,6 +221,53 @@ impl Database {
             log::info!("Migration 012 applied: added clean_content column");
         }
 
+        // Migration 013: Add locale columns to content and AI-generated tables
+        let has_content_locale: bool = conn
+            .prepare(
+                "SELECT COUNT(*) FROM pragma_table_info('captured_content') WHERE name='locale'",
+            )?
+            .query_row([], |row| row.get::<_, i32>(0))
+            .map(|c| c > 0)
+            .unwrap_or(false);
+
+        if !has_content_locale {
+            conn.execute_batch(
+                "ALTER TABLE captured_content ADD COLUMN locale TEXT NOT NULL DEFAULT 'zh-CN';",
+            )?;
+            // weekly_reports may not exist yet in some setups, so check first
+            let has_reports: bool = conn
+                .prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='weekly_reports'")
+                .and_then(|mut s| s.query_row([], |row| row.get::<_, i32>(0)))
+                .map(|c| c > 0)
+                .unwrap_or(false);
+            if has_reports {
+                conn.execute_batch(
+                    "ALTER TABLE weekly_reports ADD COLUMN locale TEXT NOT NULL DEFAULT 'zh-CN';",
+                )?;
+            }
+            let has_insights: bool = conn
+                .prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='attention_insights'")
+                .and_then(|mut s| s.query_row([], |row| row.get::<_, i32>(0)))
+                .map(|c| c > 0)
+                .unwrap_or(false);
+            if has_insights {
+                conn.execute_batch(
+                    "ALTER TABLE attention_insights ADD COLUMN locale TEXT NOT NULL DEFAULT 'zh-CN';",
+                )?;
+            }
+            let has_wiki: bool = conn
+                .prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='wiki_pages'")
+                .and_then(|mut s| s.query_row([], |row| row.get::<_, i32>(0)))
+                .map(|c| c > 0)
+                .unwrap_or(false);
+            if has_wiki {
+                conn.execute_batch(
+                    "ALTER TABLE wiki_pages ADD COLUMN locale TEXT NOT NULL DEFAULT 'zh-CN';",
+                )?;
+            }
+            log::info!("Migration 013 applied: added locale columns");
+        }
+
         log::info!("Database migrations completed successfully");
         Ok(())
     }

@@ -45,7 +45,10 @@ pub async fn generate_weekly_report(
     provider: &str,
     model: &str,
 ) -> Result<WeeklyReport, String> {
-    log::info!("开始生成周报, provider={}, model={}", provider, model);
+    log::info!("Generating weekly report, provider={}, model={}", provider, model);
+
+    // Resolve locale for prompts
+    let locale = crate::locale::resolve_locale(&db);
 
     // Step 1: Calculate the date range for the past 7 days
     let now = Utc::now();
@@ -61,16 +64,16 @@ pub async fn generate_weekly_report(
     let repo = Repository::new(db.clone());
     let contents = repo
         .get_content_for_week(&week_start, &week_end)
-        .map_err(|e| format!("查询本周内容失败: {}", e))?;
+        .map_err(|e| format!("Failed to query weekly content: {}", e))?;
 
     if contents.is_empty() {
-        return Err("本周没有保存任何内容".to_string());
+        return Err("No content saved this week".to_string());
     }
 
     let total_count = contents.len() as i32;
 
     // Step 3: Get user preferences for smart filtering and prompt enrichment
-    let preference_summary = preference_engine::get_preference_summary(db.clone());
+    let preference_summary = preference_engine::get_preference_summary(db.clone(), &locale);
     let preferences = {
         let pref_repo = Repository::new(db.clone());
         pref_repo.get_all_preferences().unwrap_or_default()
@@ -80,14 +83,14 @@ pub async fn generate_weekly_report(
     let (scored_contents, filtered_count) =
         content_filter::smart_filter_for_report(&contents, &preferences);
     log::info!(
-        "本周共 {} 条内容，智能预筛后保留 {} 条（过滤 {} 条）",
+        "Weekly: {} items total, {} kept after smart filter ({} filtered)",
         total_count,
         scored_contents.len(),
         filtered_count
     );
 
     if scored_contents.is_empty() {
-        return Err("本周没有有意义的内容可用于生成周报".to_string());
+        return Err("No meaningful content available for weekly report".to_string());
     }
 
     let content_count = total_count;
@@ -123,7 +126,7 @@ pub async fn generate_weekly_report(
                     text.clone()
                 }
             }
-            _ => "[图片内容]".to_string(),
+            _ => "[image]".to_string(),
         };
 
         // Include importance hint for AI context
@@ -132,7 +135,7 @@ pub async fn generate_weekly_report(
         let line = if is_fetched_url {
             let url = item.source_url.as_deref().unwrap_or("");
             format!(
-                "- [ID: {}] [url]{} 来自「{}」({}): [原文: {}]\n  摘要: {}",
+                "- [ID: {}] [url]{} from \"{}\" ({}): [source: {}]\n  summary: {}",
                 item.id, importance_tag, item.source_app, item.captured_at, url, text_preview
             )
         } else {
@@ -142,6 +145,7 @@ pub async fn generate_weekly_report(
                 &item.source_app,
                 &item.captured_at,
                 &text_preview,
+                &locale,
             );
             if importance_tag.is_empty() {
                 base
@@ -154,8 +158,8 @@ pub async fn generate_weekly_report(
     }
 
     // Step 6: Build the prompt
-    let system_prompt = prompts::weekly_report_system_prompt();
-    let user_message = prompts::weekly_report_user_message(&content_summaries, &preference_summary);
+    let system_prompt = prompts::weekly_report_system_prompt(&locale);
+    let user_message = prompts::weekly_report_user_message(&content_summaries, &preference_summary, &locale);
 
     // Step 7: Call the AI API
     let client = AiClient::new(api_key.to_string(), provider.to_string(), model.to_string());
@@ -163,9 +167,9 @@ pub async fn generate_weekly_report(
     let ai_response = client
         .send_message(&system_prompt, &user_message)
         .await
-        .map_err(|e| format!("AI 生成失败: {}", e))?;
+        .map_err(|e| format!("AI generation failed: {}", e))?;
 
-    log::info!("AI 响应已收到, 解析中...");
+    log::info!("AI response received, parsing...");
 
     // Step 8: Parse the JSON response
     let response_text = ai_response.text.trim().to_string();
@@ -175,11 +179,11 @@ pub async fn generate_weekly_report(
 
     let ai_report: AiReportJson = serde_json::from_str(&json_text).map_err(|e| {
         log::error!(
-            "解析 AI 返回的 JSON 失败: {}\nResponse: {}",
+            "Failed to parse AI JSON: {}\nResponse: {}",
             e,
             &response_text
         );
-        format!("解析周报 JSON 失败: {}", e)
+        format!("Failed to parse report JSON: {}", e)
     })?;
 
     // Build the WeeklyReport and ReportSections
@@ -269,9 +273,9 @@ pub async fn generate_weekly_report(
 
     // Step 9: Save the report and sections to the database
     repo.save_report(&report)
-        .map_err(|e| format!("保存周报失败: {}", e))?;
+        .map_err(|e| format!("Failed to save report: {}", e))?;
 
-    log::info!("周报生成完成, ID: {}", report.id);
+    log::info!("Report generated, ID: {}", report.id);
 
     // Step 10: Return the complete report
     Ok(report)

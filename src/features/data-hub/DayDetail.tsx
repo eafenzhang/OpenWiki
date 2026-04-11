@@ -1,27 +1,32 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useDataHubStore } from "../../stores/dataHubStore";
 import { exportDay } from "../../services/dataHubService";
 import type { CapturedContent, ContentType } from "../../types/content";
 import { ContentCard } from "../content-list/ContentCard";
 
-const WEEKDAY_NAMES = ["日", "一", "二", "三", "四", "五", "六"];
+const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
-const TYPE_CONFIG: Record<
-  ContentType,
-  { icon: string; label: string; order: number }
-> = {
-  text: { icon: "📝", label: "文本", order: 0 },
-  url: { icon: "🔗", label: "链接", order: 1 },
-  image: { icon: "📷", label: "图片", order: 2 },
-  mixed: { icon: "📎", label: "混合", order: 3 },
-};
+function useFormatDateHeader() {
+  const { t } = useTranslation("dataHub");
 
-function formatDateHeader(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  const month = d.getMonth() + 1;
-  const day = d.getDate();
-  const weekday = WEEKDAY_NAMES[d.getDay()];
-  return `${month}月${day}日 星期${weekday}`;
+  return (dateStr: string): string => {
+    const d = new Date(dateStr + "T00:00:00");
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    const weekday = t(`weekday.${WEEKDAY_KEYS[d.getDay()]}`);
+    return t("dateFormat.fullDate", { month, day, weekday });
+  };
+}
+
+function useTypeConfig(): Record<ContentType, { icon: string; label: string; order: number }> {
+  const { t } = useTranslation("dataHub");
+  return {
+    text: { icon: "📝", label: t("dayDetail.contentType.text"), order: 0 },
+    url: { icon: "🔗", label: t("dayDetail.contentType.url"), order: 1 },
+    image: { icon: "📷", label: t("dayDetail.contentType.image"), order: 2 },
+    mixed: { icon: "📎", label: t("dayDetail.contentType.mixed"), order: 3 },
+  };
 }
 
 interface ContentGroupProps {
@@ -31,7 +36,8 @@ interface ContentGroupProps {
 
 function ContentGroup({ type, items }: ContentGroupProps) {
   const [expanded, setExpanded] = useState(true);
-  const config = TYPE_CONFIG[type];
+  const typeConfig = useTypeConfig();
+  const config = typeConfig[type];
 
   return (
     <div className="mb-4">
@@ -64,6 +70,7 @@ function ContentGroup({ type, items }: ContentGroupProps) {
 
 // Welcome / overview when no date is selected
 function WelcomeView() {
+  const { t } = useTranslation("dataHub");
   const totalDates = useDataHubStore((s) => s.totalDates);
   const totalItems = useDataHubStore((s) => s.totalItems);
 
@@ -73,10 +80,10 @@ function WelcomeView() {
         <span className="text-4xl">📂</span>
       </div>
       <p className="text-lg font-medium text-gray-700 dark:text-gray-200 mb-2">
-        选择左侧日期查看内容
+        {t("welcome.title")}
       </p>
       <p className="text-sm text-gray-400 dark:text-slate-500 mb-8">
-        浏览和管理你的所有历史数据
+        {t("welcome.desc")}
       </p>
 
       {/* Stats cards */}
@@ -86,7 +93,7 @@ function WelcomeView() {
             {totalItems}
           </div>
           <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-            总条目
+            {t("welcome.totalItems")}
           </div>
         </div>
         <div className="glass rounded-2xl p-5 text-center min-w-[120px]">
@@ -94,7 +101,7 @@ function WelcomeView() {
             {totalDates}
           </div>
           <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-            活跃天数
+            {t("welcome.activeDays")}
           </div>
         </div>
       </div>
@@ -103,6 +110,9 @@ function WelcomeView() {
 }
 
 export function DayDetail() {
+  const { t } = useTranslation("dataHub");
+  const formatDateHeader = useFormatDateHeader();
+  const typeConfig = useTypeConfig();
   const selectedDate = useDataHubStore((s) => s.selectedDate);
   const dayContents = useDataHubStore((s) => s.dayContents);
   const isLoading = useDataHubStore((s) => s.isLoading);
@@ -122,11 +132,11 @@ export function DayDetail() {
     // Sort groups by the defined order
     const sorted = Array.from(groups.entries()).sort(
       (a, b) =>
-        (TYPE_CONFIG[a[0]]?.order ?? 99) - (TYPE_CONFIG[b[0]]?.order ?? 99)
+        (typeConfig[a[0]]?.order ?? 99) - (typeConfig[b[0]]?.order ?? 99)
     );
 
     return sorted;
-  }, [dayContents]);
+  }, [dayContents, typeConfig]);
 
   const handleExportDay = async () => {
     if (!selectedDate) return;
@@ -172,7 +182,7 @@ export function DayDetail() {
               {formatDateHeader(selectedDate)}
             </h2>
             <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
-              {dayContents.length} 条内容
+              {t("dayDetail.itemsCount", { count: dayContents.length })}
             </p>
           </div>
           <button
@@ -190,7 +200,7 @@ export function DayDetail() {
             ) : (
               <span className="text-sm">📤</span>
             )}
-            <span>导出此日</span>
+            <span>{t("dayDetail.exportDay")}</span>
           </button>
         </div>
       </div>
@@ -201,7 +211,7 @@ export function DayDetail() {
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <span className="text-3xl mb-3">📭</span>
             <p className="text-sm text-gray-500 dark:text-slate-400">
-              这一天没有记录的内容
+              {t("dayDetail.noContentForDay")}
             </p>
           </div>
         ) : (

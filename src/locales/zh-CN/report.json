@@ -1,0 +1,89 @@
+{
+  "title": "周报",
+  "generate": "生成",
+  "regenerate": "重新生成",
+  "generating": "生成中",
+  "noReport": "暂无周报",
+  "noReportHint": "积累一些内容后，点击生成周报",
+  "weekOf": "{{start}} - {{end}} 周报",
+  "summary": "概览",
+  "sections": "详情",
+  "history": "历史",
+  "stats": {
+    "totalItems": "本周内容",
+    "topics": "主题数",
+    "topSources": "主要来源",
+    "unit": "条",
+    "thisWeekData": "本周数据",
+    "itemsCount": "条内容",
+    "importantContent": "重要内容"
+  },
+  "feedback": {
+    "helpful": "有帮助",
+    "notHelpful": "没帮助",
+    "interested": "感兴趣",
+    "dismissed": "已了解",
+    "recorded": "已记录"
+  },
+  "filter": {
+    "all": "全部",
+    "text": "文本",
+    "url": "链接",
+    "image": "图片"
+  },
+  "contentPreview": {
+    "relatedContent": "相关内容",
+    "itemsCount": "{{count}} 条"
+  },
+  "contentType": {
+    "image": "图片",
+    "url": "链接",
+    "text": "文本",
+    "mixed": "混合"
+  },
+  "detail": {
+    "aiAdvice": "AI 建议",
+    "feedbackQuestion": "这个分析有用吗？",
+    "agree": "赞同",
+    "disagree": "不赞同",
+    "bookmark": "收藏",
+    "relatedContent": "相关内容",
+    "noRelatedContent": "暂无关联内容",
+    "viewSource": "查看原文"
+  },
+  "empty": {
+    "title": "还没有周报",
+    "desc": "AI 自动分析你本周的内容",
+    "generate": "开始生成"
+  },
+  "generatingState": {
+    "title": "AI 分析中...",
+    "desc": "需要几秒钟"
+  },
+  "error": {
+    "loadFailed": "加载周报失败，请稍后重试",
+    "generateFailed": "生成周报失败，请确认已配置 AI 服务后重试"
+  },
+  "footer": {
+    "itemsCount": "{{count}} 条内容",
+    "analysisCount": "{{count}} 项分析"
+  },
+  "noData": "暂无数据",
+  "dayLabels": ["一", "二", "三", "四", "五", "六", "日"],
+  "weekPrefix": "周",
+  "linkList": {
+    "empty": "本周没有链接内容",
+    "count": "{{count}} 个链接",
+    "unknownLink": "未知链接"
+  },
+  "textList": {
+    "empty": "本周没有文本内容",
+    "count": "{{count}} 条文本",
+    "collapse": "收起",
+    "expand": "展开"
+  },
+  "imageList": {
+    "empty": "本周没有图片内容",
+    "count": "{{count}} 张图片"
+  }
+}

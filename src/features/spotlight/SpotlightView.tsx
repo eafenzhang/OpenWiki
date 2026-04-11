@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useTranslation } from "react-i18next";
 
 /** Payload emitted from Rust via `spotlight:content-ready`. */
 interface SpotlightPayload {
@@ -19,6 +20,7 @@ const TYPE_ICON: Record<string, string> = {
 };
 
 export default function SpotlightView() {
+  const { t } = useTranslation("common");
   const [payload, setPayload] = useState<SpotlightPayload | null>(null);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
@@ -140,7 +142,7 @@ export default function SpotlightView() {
           min-w-0
         "
         placeholder={
-          payload ? "添加备注，回车保存…" : "等待内容…"
+          payload ? t("spotlight.addNotePlaceholder") : t("spotlight.waitingForContent")
         }
         value={note}
         onChange={(e) => setNote(e.target.value)}

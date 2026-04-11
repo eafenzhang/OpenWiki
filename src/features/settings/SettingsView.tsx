@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Palette, Bot, Camera, Link as LinkIcon, HardDrive, Target } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   useSettingsStore,
   MODELS_BY_PROVIDER,
@@ -8,29 +9,38 @@ import {
   type AIProvider,
   type ThemeMode,
   type BubblePosition,
+  type LanguageMode,
 } from "../../stores/settingsStore";
 
-const BUBBLE_POSITION_OPTIONS: { value: BubblePosition; label: string; icon: string }[] = [
-  { value: "bottom-right", label: "右下", icon: "↘" },
-  { value: "bottom-center", label: "下方居中", icon: "↓" },
-  { value: "bottom-left", label: "左下", icon: "↙" },
-  { value: "top-right", label: "右上", icon: "↗" },
-  { value: "top-center", label: "上方居中", icon: "↑" },
-  { value: "top-left", label: "左上", icon: "↖" },
+const BUBBLE_POSITION_KEYS: { value: BubblePosition; key: string; icon: string }[] = [
+  { value: "bottom-right", key: "capture.positions.bottom-right", icon: "↘" },
+  { value: "bottom-center", key: "capture.positions.bottom-center", icon: "↓" },
+  { value: "bottom-left", key: "capture.positions.bottom-left", icon: "↙" },
+  { value: "top-right", key: "capture.positions.top-right", icon: "↗" },
+  { value: "top-center", key: "capture.positions.top-center", icon: "↑" },
+  { value: "top-left", key: "capture.positions.top-left", icon: "↖" },
 ];
 
-const THEME_OPTIONS: { value: ThemeMode; label: string; icon: string }[] = [
-  { value: "light", label: "浅色", icon: "☀️" },
-  { value: "dark", label: "深色", icon: "🌙" },
-  { value: "system", label: "跟随系统", icon: "💻" },
+const THEME_OPTIONS: { value: ThemeMode; key: string; icon: string }[] = [
+  { value: "light", key: "theme.light", icon: "☀️" },
+  { value: "dark", key: "theme.dark", icon: "🌙" },
+  { value: "system", key: "theme.system", icon: "💻" },
+];
+
+const LANGUAGE_OPTIONS: { value: LanguageMode; key: string }[] = [
+  { value: "system", key: "language.system" },
+  { value: "zh-CN", key: "language.zh-CN" },
+  { value: "en-US", key: "language.en-US" },
 ];
 
 export function SettingsView() {
+  const { t } = useTranslation("settings");
   const {
     apiKey,
     provider,
     model,
     theme,
+    languageMode,
     captureEnabled,
     captureMode,
     bubbleStyle,
@@ -46,6 +56,7 @@ export function SettingsView() {
     setProvider,
     setModel,
     setTheme,
+    setLanguageMode,
     setCaptureEnabled,
     setCaptureMode,
     setBubbleStyle,
@@ -124,7 +135,7 @@ export function SettingsView() {
     updateMcpTarget(target, { loading: true, error: null, message: null });
     try {
       await invoke("disconnect_mcp", { target });
-      updateMcpTarget(target, { loading: false, connected: false, message: "已断开连接。" });
+      updateMcpTarget(target, { loading: false, connected: false, message: t("connection.disconnectedMsg") });
     } catch (e) {
       updateMcpTarget(target, { loading: false, error: typeof e === "string" ? e : String(e) });
     }
@@ -142,12 +153,12 @@ export function SettingsView() {
   }, [loadXReaderStatus, setStorageInfo]);
 
   const categories = [
-    { id: "appearance", label: "外观", icon: Palette },
-    { id: "capture", label: "采集", icon: Camera },
-    { id: "radar", label: "洞察", icon: Target },
-    { id: "ai", label: "AI", icon: Bot },
-    { id: "connect", label: "连接", icon: LinkIcon },
-    { id: "storage", label: "存储", icon: HardDrive },
+    { id: "appearance", label: t("sections.appearance"), icon: Palette },
+    { id: "capture", label: t("sections.capture"), icon: Camera },
+    { id: "radar", label: t("sections.insights"), icon: Target },
+    { id: "ai", label: t("sections.ai"), icon: Bot },
+    { id: "connect", label: t("sections.connection"), icon: LinkIcon },
+    { id: "storage", label: t("sections.storage"), icon: HardDrive },
   ];
   const [activeCategory, setActiveCategory] = useState("appearance");
 
@@ -189,14 +200,15 @@ export function SettingsView() {
       <div className="flex-1 overflow-y-auto p-6 flex justify-center">
         <div className="w-full max-w-xl">
 
-      {/* ===== 外观 ===== */}
+      {/* ===== Appearance ===== */}
       {activeCategory === "appearance" && (
         <div className="space-y-6">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">外观</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{t("sections.appearance")}</h2>
           <div className="glass rounded-2xl">
+            {/* Theme */}
             <div className="p-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                主题模式
+                {t("theme.label")}
               </label>
               <div className="flex gap-2">
                 {THEME_OPTIONS.map((opt) => (
@@ -212,7 +224,31 @@ export function SettingsView() {
                     `}
                   >
                     <span>{opt.icon}</span>
-                    <span>{opt.label}</span>
+                    <span>{t(opt.key)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Language */}
+            <div className="p-4 border-t border-gray-100/50 dark:border-white/[0.06]">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t("language.label")}
+              </label>
+              <p className="text-xs text-gray-400 dark:text-slate-500 mb-2">{t("language.description")}</p>
+              <div className="flex gap-2">
+                {LANGUAGE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setLanguageMode(opt.value)}
+                    className={`
+                      flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium rounded-lg border transition-all duration-150
+                      ${languageMode === opt.value
+                        ? "bg-orange-500/10 dark:bg-orange-500/15 border-orange-300/60 dark:border-orange-500/30 text-orange-700 dark:text-orange-400 shadow-sm"
+                        : "bg-white/50 dark:bg-white/[0.04] border-white/60 dark:border-white/[0.08] text-gray-600 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-white/[0.08]"
+                      }
+                    `}
+                  >
+                    <span>{t(opt.key)}</span>
                   </button>
                 ))}
               </div>
@@ -221,23 +257,23 @@ export function SettingsView() {
         </div>
       )}
 
-      {/* ===== 采集 ===== */}
+      {/* ===== Capture ===== */}
       {activeCategory === "capture" && (
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">采集</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">{t("sections.capture")}</h2>
           <div className="glass rounded-2xl divide-y divide-gray-100/50 dark:divide-white/[0.06]">
 
           {/* Capture Toggle */}
-          <SettingRow label="内容捕获" desc="开启后将自动检测剪贴板和截图变化">
+          <SettingRow label={t("capture.enabled")} desc={t("capture.enabledDesc")}>
             <ToggleSwitch checked={captureEnabled} onChange={setCaptureEnabled} color="orange" />
           </SettingRow>
 
           {/* Capture Mode */}
-          <SettingRow label="捕获模式" desc="自动保存所有内容，或逐个确认">
+          <SettingRow label={t("capture.mode")} desc={t("capture.modeDesc")}>
             <div className="flex gap-1.5">
               {([
-                { value: "confirm", label: "确认" },
-                { value: "auto", label: "自动" },
+                { value: "confirm", key: "capture.confirm" },
+                { value: "auto", key: "capture.auto" },
               ] as const).map((opt) => (
                 <button
                   key={opt.value}
@@ -248,7 +284,7 @@ export function SettingsView() {
                       : "bg-white/50 dark:bg-white/[0.04] border-gray-200/50 dark:border-white/[0.08] text-gray-600 dark:text-slate-300"
                     }`}
                 >
-                  {opt.label}
+                  {t(opt.key)}
                 </button>
               ))}
             </div>
@@ -256,11 +292,11 @@ export function SettingsView() {
 
           {/* Default Action */}
           {captureMode === "confirm" && (
-            <SettingRow label="默认操作" desc="确认弹窗倒计时结束后的默认行为">
+            <SettingRow label={t("capture.defaultAction")} desc={t("capture.defaultActionDesc")}>
               <div className="flex gap-1.5">
                 {([
-                  { value: "dismiss", label: "丢弃" },
-                  { value: "save", label: "保存" },
+                  { value: "dismiss", key: "capture.defaultDismiss" },
+                  { value: "save", key: "capture.defaultSave" },
                 ] as const).map((opt) => (
                   <button
                     key={opt.value}
@@ -271,7 +307,7 @@ export function SettingsView() {
                         : "bg-white/50 dark:bg-white/[0.04] border-gray-200/50 dark:border-white/[0.08] text-gray-600 dark:text-slate-300"
                       }`}
                   >
-                    {opt.label}
+                    {t(opt.key)}
                   </button>
                 ))}
               </div>
@@ -280,11 +316,11 @@ export function SettingsView() {
 
           {/* Bubble Style */}
           {captureMode === "confirm" && (
-            <SettingRow label="悬浮球样式">
+            <SettingRow label={t("capture.bubbleStyle")}>
               <div className="flex gap-1.5">
                 {([
-                  { value: "circle", label: "圆形" },
-                  { value: "bar", label: "长条" },
+                  { value: "circle", key: "capture.circle" },
+                  { value: "bar", key: "capture.bar" },
                 ] as const).map((opt) => (
                   <button
                     key={opt.value}
@@ -295,7 +331,7 @@ export function SettingsView() {
                         : "bg-white/50 dark:bg-white/[0.04] border-gray-200/50 dark:border-white/[0.08] text-gray-600 dark:text-slate-300"
                       }`}
                   >
-                    {opt.label}
+                    {t(opt.key)}
                   </button>
                 ))}
               </div>
@@ -304,14 +340,14 @@ export function SettingsView() {
 
           {/* Bubble Position */}
           {captureMode === "confirm" && (
-            <SettingRow label="悬浮球位置">
+            <SettingRow label={t("capture.bubblePosition")}>
               <select
                 value={bubblePosition}
                 onChange={(e) => setBubblePosition(e.target.value as BubblePosition)}
                 className="text-sm rounded-lg px-3 py-1.5 bg-white/40 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.08] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-orange-400/50"
               >
-                {BUBBLE_POSITION_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
+                {BUBBLE_POSITION_KEYS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.icon} {t(opt.key)}</option>
                 ))}
               </select>
             </SettingRow>
@@ -319,26 +355,26 @@ export function SettingsView() {
 
           {/* Countdown */}
           {captureMode === "confirm" && (
-            <SettingRow label="确认倒计时" desc="悬浮球自动消失的等待时间">
+            <SettingRow label={t("capture.countdown")} desc={t("capture.countdownDesc")}>
               <select
                 value={countdownDuration}
                 onChange={(e) => setCountdownDuration(Number(e.target.value))}
                 className="text-sm rounded-lg px-3 py-1.5 bg-white/40 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.08] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-orange-400/50"
               >
                 {[3, 5, 8, 10, 15].map((s) => (
-                  <option key={s} value={s}>{s} 秒</option>
+                  <option key={s} value={s}>{s} {t("capture.countdownUnit")}</option>
                 ))}
               </select>
             </SettingRow>
           )}
 
           {/* Sensitive Filter */}
-          <SettingRow label="敏感数据过滤" desc="自动过滤密码、私钥、API Key 等">
+          <SettingRow label={t("capture.sensitiveFilter")} desc={t("capture.sensitiveFilterDesc")}>
             <ToggleSwitch checked={sensitiveFilterEnabled} onChange={setSensitiveFilterEnabled} color="amber" />
           </SettingRow>
 
           {/* URL Reading */}
-          <SettingRow label="链接内容读取" desc="复制链接时自动获取网页正文">
+          <SettingRow label={t("capture.urlReading")} desc={t("capture.urlReadingDesc")}>
             <ToggleSwitch checked={urlReadingEnabled} onChange={setUrlReadingEnabled} color="green" />
           </SettingRow>
 
@@ -346,26 +382,26 @@ export function SettingsView() {
         </div>
       )}
 
-      {/* ===== 雷达 ===== */}
+      {/* ===== Insights ===== */}
       {activeCategory === "radar" && (
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">洞察</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">{t("insights.title")}</h2>
           <div className="glass rounded-2xl divide-y divide-gray-100/50 dark:divide-white/[0.06]">
-            <SettingRow label="分析频率" desc="洞察报告自动分析的间隔时间">
+            <SettingRow label={t("insights.interval")} desc={t("insights.intervalDesc")}>
               <select
                 value={radarIntervalDays}
                 onChange={(e) => setRadarIntervalDays(Number(e.target.value))}
                 className="text-sm rounded-lg px-3 py-1.5 bg-white/40 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.08] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-orange-400/50"
               >
-                <option value={1}>每天</option>
-                <option value={3}>每 3 天</option>
-                <option value={7}>每周</option>
-                <option value={30}>每月</option>
+                <option value={1}>{t("insights.intervalDaily")}</option>
+                <option value={3}>{t("insights.interval3Days")}</option>
+                <option value={7}>{t("insights.intervalWeekly")}</option>
+                <option value={30}>{t("insights.intervalMonthly")}</option>
               </select>
             </SettingRow>
           </div>
           <p className="text-xs text-gray-400 dark:text-gray-600 mt-3 px-1">
-            洞察页右上角的刷新按钮可以随时手动触发分析
+            {t("insights.hint")}
           </p>
         </div>
       )}
@@ -373,11 +409,11 @@ export function SettingsView() {
       {/* ===== AI ===== */}
       {activeCategory === "ai" && (
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">AI 配置</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">{t("ai.title")}</h2>
           <div className="glass rounded-2xl divide-y divide-gray-100/50 dark:divide-white/[0.06]">
 
           {/* Provider */}
-          <SettingRow label="AI 提供商">
+          <SettingRow label={t("ai.provider")}>
             <select
               value={provider}
               onChange={(e) => {
@@ -396,7 +432,7 @@ export function SettingsView() {
           </SettingRow>
 
           {/* Model */}
-          <SettingRow label="模型">
+          <SettingRow label={t("ai.model")}>
             <select
               value={model}
               onChange={(e) => setModel(e.target.value)}
@@ -415,21 +451,21 @@ export function SettingsView() {
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">账号登录</div>
-                  <div className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">使用 ChatGPT 订阅额度</div>
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">{t("ai.oauthTitle")}</div>
+                  <div className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{t("ai.oauthOpenAIDesc")}</div>
                 </div>
               </div>
               {oauthLoggedIn ? (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-green-600 dark:text-green-400">✓ 已登录</span>
+                    <span className="text-sm text-green-600 dark:text-green-400">{t("ai.oauthLoggedIn")}</span>
                     <span className="text-xs text-gray-400 dark:text-gray-500">{oauthEmail}</span>
                   </div>
                   <button
                     onClick={logoutOAuth}
                     className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200/50 dark:border-white/[0.08] text-gray-500 dark:text-slate-400 hover:bg-gray-100/50 dark:hover:bg-white/[0.04] transition-colors"
                   >
-                    退出登录
+                    {t("ai.oauthLogout")}
                   </button>
                 </div>
               ) : (
@@ -439,16 +475,16 @@ export function SettingsView() {
                       try {
                         await startOAuthLogin();
                       } catch (e) {
-                        alert(typeof e === "string" ? e : "登录失败，请重试");
+                        alert(typeof e === "string" ? e : t("ai.oauthLoginFailed"));
                       }
                     }}
                     disabled={oauthLoading}
                     className="w-full px-4 py-2.5 text-sm font-medium rounded-lg bg-[#10a37f] hover:bg-[#0d8c6d] text-white transition-colors disabled:opacity-50 disabled:cursor-default"
                   >
-                    {oauthLoading ? "等待浏览器授权..." : "登录 OpenAI 账号"}
+                    {oauthLoading ? t("ai.oauthLoading") : t("ai.oauthLoginOpenAI")}
                   </button>
                   <p className="text-xs text-gray-400 dark:text-gray-600 mt-2">
-                    登录后无需 API Key，直接使用 ChatGPT 订阅额度
+                    {t("ai.oauthOpenAIHint")}
                   </p>
                 </div>
               )}
@@ -460,21 +496,21 @@ export function SettingsView() {
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">账号登录</div>
-                  <div className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">免费使用 Gemini 模型</div>
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">{t("ai.oauthTitle")}</div>
+                  <div className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{t("ai.oauthGeminiDesc")}</div>
                 </div>
               </div>
               {geminiOauthLoggedIn ? (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-green-600 dark:text-green-400">✓ 已登录</span>
+                    <span className="text-sm text-green-600 dark:text-green-400">{t("ai.oauthLoggedIn")}</span>
                     <span className="text-xs text-gray-400 dark:text-gray-500">{geminiOauthEmail}</span>
                   </div>
                   <button
                     onClick={logoutGeminiOAuth}
                     className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200/50 dark:border-white/[0.08] text-gray-500 dark:text-slate-400 hover:bg-gray-100/50 dark:hover:bg-white/[0.04] transition-colors"
                   >
-                    退出登录
+                    {t("ai.oauthLogout")}
                   </button>
                 </div>
               ) : (
@@ -482,15 +518,15 @@ export function SettingsView() {
                   <button
                     onClick={async () => {
                       try { await startGeminiOAuthLogin(); }
-                      catch (e) { alert(typeof e === "string" ? e : "登录失败，请重试"); }
+                      catch (e) { alert(typeof e === "string" ? e : t("ai.oauthLoginFailed")); }
                     }}
                     disabled={geminiOauthLoading}
                     className="w-full px-4 py-2.5 text-sm font-medium rounded-lg bg-[#4285f4] hover:bg-[#3367d6] text-white transition-colors disabled:opacity-50 disabled:cursor-default"
                   >
-                    {geminiOauthLoading ? "等待浏览器授权..." : "登录 Google 账号"}
+                    {geminiOauthLoading ? t("ai.oauthLoading") : t("ai.oauthLoginGoogle")}
                   </button>
                   <p className="text-xs text-gray-400 dark:text-gray-600 mt-2">
-                    登录后无需 API Key，免费使用 Gemini 模型
+                    {t("ai.oauthGeminiHint")}
                   </p>
                 </div>
               )}
@@ -501,8 +537,8 @@ export function SettingsView() {
           <div className="p-4">
             <div className="flex items-center justify-between mb-2">
               <div>
-                <div className="text-sm font-medium text-gray-700 dark:text-gray-300">API Key</div>
-                <div className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">安全存储在本地</div>
+                <div className="text-sm font-medium text-gray-700 dark:text-gray-300">{t("ai.apiKey")}</div>
+                <div className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{t("ai.apiKeyDesc")}</div>
               </div>
             </div>
             <div className="flex gap-2">
@@ -514,14 +550,14 @@ export function SettingsView() {
                   setApiKeySaved(false);
                   setTestStatus("idle");
                 }}
-                placeholder="输入你的 API Key"
+                placeholder={t("ai.apiKeyPlaceholder")}
                 className="flex-1 px-3 py-2 text-sm rounded-lg bg-white/50 dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.08] text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-orange-400/50"
               />
               <button
                 onClick={() => setShowApiKey(!showApiKey)}
                 className="px-3 py-2 text-xs font-medium rounded-lg border border-gray-200/50 dark:border-white/[0.08] text-gray-500 dark:text-slate-400 hover:bg-gray-100/50 dark:hover:bg-white/[0.04] transition-colors"
               >
-                {showApiKey ? "隐藏" : "显示"}
+                {showApiKey ? t("ai.apiKeyHide") : t("ai.apiKeyShow")}
               </button>
             </div>
             <div className="flex gap-2 mt-2">
@@ -538,7 +574,7 @@ export function SettingsView() {
                   disabled:opacity-30 disabled:cursor-default
                   bg-orange-500/10 dark:bg-orange-500/15 border-orange-300/60 dark:border-orange-500/30 text-orange-700 dark:text-orange-400 hover:bg-orange-500/20 dark:hover:bg-orange-500/25"
               >
-                {apiKeySaved ? "✓ 已保存" : "保存"}
+                {apiKeySaved ? t("ai.apiKeySaved") : t("ai.apiKeySave")}
               </button>
               <button
                 onClick={async () => {
@@ -567,14 +603,14 @@ export function SettingsView() {
                   disabled:opacity-30 disabled:cursor-default
                   bg-white/50 dark:bg-white/[0.04] border-gray-200/50 dark:border-white/[0.08] text-gray-600 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-white/[0.08]"
               >
-                {testStatus === "testing" ? "测试中..." : "测试连接"}
+                {testStatus === "testing" ? t("ai.testing") : t("ai.testConnection")}
               </button>
             </div>
             {testStatus === "success" && (
-              <p className="mt-2 text-xs text-green-600 dark:text-green-400">✓ 连接成功：{testMessage}</p>
+              <p className="mt-2 text-xs text-green-600 dark:text-green-400">{t("ai.testSuccess", { message: testMessage })}</p>
             )}
             {testStatus === "error" && (
-              <p className="mt-2 text-xs text-red-500 dark:text-red-400">✗ {testMessage}</p>
+              <p className="mt-2 text-xs text-red-500 dark:text-red-400">{t("ai.testFailed", { message: testMessage })}</p>
             )}
           </div>
 
@@ -582,51 +618,51 @@ export function SettingsView() {
         </div>
       )}
 
-      {/* ===== 连接 ===== */}
+      {/* ===== Connection ===== */}
       {activeCategory === "connect" && (
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">AI 助理连接</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">{t("connection.title")}</h2>
           <div className="glass rounded-2xl divide-y divide-gray-100/50 dark:divide-white/[0.06]">
           {([
-            { id: "claude" as McpTargetId, name: "Claude Desktop", hint: "在 Claude 中问" },
-          ]).map((t) => {
-            const s = mcpStates[t.id];
+            { id: "claude" as McpTargetId, name: "Claude Desktop" },
+          ]).map((tgt) => {
+            const s = mcpStates[tgt.id];
             return (
-              <div key={t.id} className="p-4">
+              <div key={tgt.id} className="p-4">
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {t.name}
+                      {tgt.name}
                     </div>
                     <div className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
                       {s.connected
-                        ? `已连接 — ${t.name} 可以读取你保存的内容`
-                        : `一键让 ${t.name} 读取你的数据`}
+                        ? t("connection.connectedHint", { name: tgt.name })
+                        : t("connection.disconnectedHint", { name: tgt.name })}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${s.connected ? "bg-green-500" : "bg-gray-300 dark:bg-slate-600"}`} />
                     <span className="text-xs text-gray-500 dark:text-slate-400">
-                      {s.connected ? "已连接" : "未连接"}
+                      {s.connected ? t("connection.connected") : t("connection.disconnected")}
                     </span>
                   </div>
                 </div>
 
                 {s.connected ? (
                   <button
-                    onClick={() => handleDisconnectMcp(t.id)}
+                    onClick={() => handleDisconnectMcp(tgt.id)}
                     disabled={s.loading}
                     className="w-full py-2 text-sm font-medium rounded-lg border text-red-500 dark:text-red-400 border-red-200/50 dark:border-red-500/20 bg-red-50/50 dark:bg-red-500/[0.06] hover:bg-red-100/50 dark:hover:bg-red-500/[0.12] disabled:opacity-50 transition-colors"
                   >
-                    {s.loading ? "处理中..." : "断开连接"}
+                    {s.loading ? t("connection.disconnecting") : t("connection.disconnectBtn")}
                   </button>
                 ) : (
                   <button
-                    onClick={() => handleConnectMcp(t.id)}
+                    onClick={() => handleConnectMcp(tgt.id)}
                     disabled={s.loading}
                     className="w-full py-2 text-sm font-medium rounded-lg border text-orange-600 dark:text-orange-400 border-orange-200/50 dark:border-orange-500/20 bg-orange-50/50 dark:bg-orange-500/[0.06] hover:bg-orange-100/50 dark:hover:bg-orange-500/[0.12] disabled:opacity-50 transition-colors"
                   >
-                    {s.loading ? "连接中..." : `连接 ${t.name}`}
+                    {s.loading ? t("connection.connecting") : t("connection.connectBtn", { name: tgt.name })}
                   </button>
                 )}
 
@@ -639,10 +675,10 @@ export function SettingsView() {
           {/* Copy Summary */}
           <div className="p-4">
             <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              内容摘要
+              {t("connection.summaryTitle")}
             </div>
             <div className="text-xs text-gray-400 dark:text-slate-500 mb-3">
-              复制最近 7 天的内容摘要，粘贴给 AI 助理
+              {t("connection.summaryDesc")}
             </div>
             <button
               onClick={async () => {
@@ -656,7 +692,7 @@ export function SettingsView() {
               }}
               className="w-full py-2 text-sm font-medium rounded-lg border text-gray-600 dark:text-gray-300 border-gray-200/50 dark:border-white/[0.08] bg-white/40 dark:bg-white/[0.04] hover:bg-white/70 dark:hover:bg-white/[0.08] transition-colors"
             >
-              {summaryCopied ? "✓ 已复制到剪贴板" : "复制最近内容摘要"}
+              {summaryCopied ? t("connection.summaryCopied") : t("connection.summaryCopyBtn")}
             </button>
             {mcpGlobalError && <p className="mt-2 text-xs text-red-500 dark:text-red-400">{mcpGlobalError}</p>}
           </div>
@@ -664,18 +700,18 @@ export function SettingsView() {
         </div>
       )}
 
-      {/* ===== 存储 ===== */}
+      {/* ===== Storage ===== */}
       {activeCategory === "storage" && (
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">存储</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">{t("storage.title")}</h2>
           <div className="glass rounded-2xl divide-y divide-gray-100/50 dark:divide-white/[0.06]">
-            <SettingRow label="已保存内容">
-              <span className="text-sm font-mono text-gray-700 dark:text-gray-300">{totalItems} 条</span>
+            <SettingRow label={t("storage.totalItems")}>
+              <span className="text-sm font-mono text-gray-700 dark:text-gray-300">{totalItems} {t("storage.totalItemsUnit")}</span>
             </SettingRow>
-            <SettingRow label="磁盘占用">
-              <span className="text-sm font-mono text-gray-700 dark:text-gray-300">{diskUsageMB.toFixed(1)} MB</span>
+            <SettingRow label={t("storage.diskUsage")}>
+              <span className="text-sm font-mono text-gray-700 dark:text-gray-300">{diskUsageMB.toFixed(1)} {t("storage.unit")}</span>
             </SettingRow>
-            <SettingRow label="截图目录">
+            <SettingRow label={t("storage.screenshotDir")}>
               <span className="text-xs font-mono text-gray-500 dark:text-slate-400 break-all">{screenshotDir}</span>
             </SettingRow>
             <div className="p-4">
@@ -683,13 +719,13 @@ export function SettingsView() {
                 onClick={() => invoke("open_data_folder").catch((e) => console.error("open_data_folder failed:", e))}
                 className="w-full py-2 text-sm font-medium rounded-lg border text-gray-600 dark:text-gray-300 border-gray-200/50 dark:border-white/[0.08] bg-white/40 dark:bg-white/[0.04] hover:bg-white/70 dark:hover:bg-white/[0.08] transition-colors"
               >
-                打开数据文件夹
+                {t("storage.openDataFolder")}
               </button>
             </div>
           </div>
 
           {/* Export section */}
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 mt-6">导出</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 mt-6">{t("export.title")}</h2>
           <ExportSection totalItems={totalItems} />
         </div>
       )}
@@ -731,6 +767,8 @@ function ToggleSwitch({ checked, onChange, color = "orange" }: { checked: boolea
 }
 
 function ExportSection({ totalItems }: { totalItems: number }) {
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation("common");
   const [exportStatus, setExportStatus] = useState<"idle" | "exporting" | "done">("idle");
   const [resultMsg, setResultMsg] = useState("");
   const [rangeOpen, setRangeOpen] = useState(false);
@@ -741,7 +779,7 @@ function ExportSection({ totalItems }: { totalItems: number }) {
     setExportStatus("exporting");
     try {
       await invoke("export_all_single");
-      setResultMsg(`已导出 ${totalItems} 条内容`);
+      setResultMsg(t("export.exportedAll", { count: totalItems }));
       setExportStatus("done");
       setTimeout(() => setExportStatus("idle"), 3000);
     } catch (e) {
@@ -755,7 +793,7 @@ function ExportSection({ totalItems }: { totalItems: number }) {
     setExportStatus("exporting");
     try {
       await invoke("export_range_single", { start: startDate, end: endDate });
-      setResultMsg(`已导出 ${startDate} 至 ${endDate}`);
+      setResultMsg(t("export.exportedRange", { start: startDate, end: endDate }));
       setExportStatus("done");
       setRangeOpen(false);
       setTimeout(() => setExportStatus("idle"), 3000);
@@ -769,9 +807,9 @@ function ExportSection({ totalItems }: { totalItems: number }) {
     <div className="glass rounded-2xl divide-y divide-gray-100/50 dark:divide-white/[0.06]">
       {/* Export all */}
       <div className="p-4">
-        <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">导出全部内容</div>
+        <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t("export.exportAll")}</div>
         <div className="text-xs text-gray-400 dark:text-slate-500 mb-3">
-          {totalItems} 条内容导出为单个 Markdown 文件，保存到下载文件夹
+          {t("export.exportAllDesc", { count: totalItems })}
         </div>
         <button
           onClick={handleExportAll}
@@ -782,15 +820,15 @@ function ExportSection({ totalItems }: { totalItems: number }) {
                      hover:bg-orange-100/50 dark:hover:bg-orange-500/[0.12]
                      disabled:opacity-50 transition-colors"
         >
-          {exportStatus === "exporting" ? "导出中..." : "导出全部"}
+          {exportStatus === "exporting" ? t("export.exporting") : t("export.exportAllBtn")}
         </button>
       </div>
 
       {/* Export date range */}
       <div className="p-4">
-        <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">按日期范围导出</div>
+        <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t("export.exportRange")}</div>
         <div className="text-xs text-gray-400 dark:text-slate-500 mb-3">
-          选择起止日期，导出为单个 Markdown 文件
+          {t("export.exportRangeDesc")}
         </div>
         {!rangeOpen ? (
           <button
@@ -809,12 +847,12 @@ function ExportSection({ totalItems }: { totalItems: number }) {
                        bg-white/40 dark:bg-white/[0.04]
                        hover:bg-white/70 dark:hover:bg-white/[0.08] transition-colors"
           >
-            选择日期范围
+            {t("export.selectDateRange")}
           </button>
         ) : (
           <div className="space-y-2.5">
             <div>
-              <div className="text-xs text-gray-500 dark:text-slate-400 mb-1">开始日期</div>
+              <div className="text-xs text-gray-500 dark:text-slate-400 mb-1">{t("export.startDate")}</div>
               <input
                 type="date"
                 value={startDate}
@@ -825,7 +863,7 @@ function ExportSection({ totalItems }: { totalItems: number }) {
               />
             </div>
             <div>
-              <div className="text-xs text-gray-500 dark:text-slate-400 mb-1">结束日期</div>
+              <div className="text-xs text-gray-500 dark:text-slate-400 mb-1">{t("export.endDate")}</div>
               <input
                 type="date"
                 value={endDate}
@@ -842,7 +880,7 @@ function ExportSection({ totalItems }: { totalItems: number }) {
                            text-gray-500 dark:text-slate-400 border-gray-200/50 dark:border-white/[0.08]
                            bg-white/40 dark:bg-white/[0.04] hover:bg-white/70 dark:hover:bg-white/[0.08] transition-colors"
               >
-                取消
+                {tc("action.cancel")}
               </button>
               <button
                 onClick={handleExportRange}
@@ -853,7 +891,7 @@ function ExportSection({ totalItems }: { totalItems: number }) {
                            hover:bg-orange-100/50 dark:hover:bg-orange-500/[0.12]
                            disabled:opacity-50 transition-colors"
               >
-                {exportStatus === "exporting" ? "导出中..." : "确认导出"}
+                {exportStatus === "exporting" ? t("export.exporting") : t("export.confirmExport")}
               </button>
             </div>
           </div>
@@ -865,7 +903,7 @@ function ExportSection({ totalItems }: { totalItems: number }) {
         <div className="p-4">
           <div className="px-3 py-2 rounded-lg bg-green-500/10 dark:bg-green-500/15 border border-green-300/40 dark:border-green-500/20">
             <p className="text-xs text-green-700 dark:text-green-400 text-center">
-              ✓ {resultMsg}，已在 Finder 中打开
+              {resultMsg}{t("export.exportedFinderHint")}
             </p>
           </div>
         </div>
@@ -878,6 +916,7 @@ function ExportSection({ totalItems }: { totalItems: number }) {
 }
 
 function WikiSettingsSection() {
+  const { t } = useTranslation("settings");
   const [stats, setStats] = useState<{ total_pages: number; total_edges: number; total_sources: number } | null>(null);
   const [autoCompile, setAutoCompile] = useState(true);
   const [compiling, setCompiling] = useState(false);
@@ -915,12 +954,23 @@ function WikiSettingsSection() {
     try {
       const { triggerWikiAutoCompile } = await import("../../services/wikiService");
       const result = await triggerWikiAutoCompile();
-      setCompileResult(`已处理 ${result.processed} 条，编译 ${result.compiled} 条${result.errors > 0 ? `，${result.errors} 个错误` : ""}`);
+      if (result.errors > 0) {
+        setCompileResult(t("wiki.compileResultWithErrors", {
+          processed: result.processed,
+          compiled: result.compiled,
+          errors: result.errors,
+        }));
+      } else {
+        setCompileResult(t("wiki.compileResult", {
+          processed: result.processed,
+          compiled: result.compiled,
+        }));
+      }
       // Refresh stats
       const { getWikiStats } = await import("../../services/wikiService");
       setStats(await getWikiStats());
     } catch (e) {
-      setCompileResult(`编译失败: ${e}`);
+      setCompileResult(t("wiki.compileFailed", { error: String(e) }));
     }
     setCompiling(false);
   };
@@ -928,7 +978,7 @@ function WikiSettingsSection() {
   return (
     <div className="px-5 py-4 border-t" style={{ borderColor: "var(--color-border, #E7E5E4)" }}>
       <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary, #1C1917)", marginBottom: 12 }}>
-        知识库
+        {t("wiki.title")}
       </h3>
 
       {/* Stats */}
@@ -938,19 +988,19 @@ function WikiSettingsSection() {
             <div style={{ fontSize: 18, fontWeight: 700, color: "#F97316", fontFamily: "'Cabinet Grotesk', sans-serif" }}>
               {stats.total_pages}
             </div>
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>知识页面</div>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{t("wiki.pages")}</div>
           </div>
           <div className="text-center">
             <div style={{ fontSize: 18, fontWeight: 700, color: "#F97316", fontFamily: "'Cabinet Grotesk', sans-serif" }}>
               {stats.total_edges}
             </div>
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>关联</div>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{t("wiki.edges")}</div>
           </div>
           <div className="text-center">
             <div style={{ fontSize: 18, fontWeight: 700, color: "#F97316", fontFamily: "'Cabinet Grotesk', sans-serif" }}>
               {stats.total_sources}
             </div>
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>来源</div>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{t("wiki.sources")}</div>
           </div>
         </div>
       )}
@@ -958,8 +1008,8 @@ function WikiSettingsSection() {
       {/* Auto compile toggle */}
       <div className="flex items-center justify-between py-2">
         <div>
-          <p style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>自动编译</p>
-          <p style={{ fontSize: 11, color: "var(--color-text-muted)" }}>新内容自动整理进知识库</p>
+          <p style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{t("wiki.autoCompile")}</p>
+          <p style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{t("wiki.autoCompileDesc")}</p>
         </div>
         <button
           onClick={handleToggle}
@@ -985,7 +1035,7 @@ function WikiSettingsSection() {
             border: "1px solid #F9731630",
           }}
         >
-          {compiling ? "编译中..." : "手动触发批量编译"}
+          {compiling ? t("wiki.compiling") : t("wiki.batchCompile")}
         </button>
         {compileResult && (
           <p className="mt-2" style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>

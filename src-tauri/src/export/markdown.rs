@@ -3,20 +3,20 @@ use crate::storage::repository::Repository;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Convert a date string (e.g. "2026-03-19") to a Chinese weekday name.
-fn weekday_chinese(date_str: &str) -> String {
+/// Convert a date string (e.g. "2026-03-19") to an English weekday name.
+fn weekday_english(date_str: &str) -> String {
     use chrono::NaiveDate;
     match NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
         Ok(date) => {
             use chrono::Datelike;
             match date.weekday() {
-                chrono::Weekday::Mon => "周一".to_string(),
-                chrono::Weekday::Tue => "周二".to_string(),
-                chrono::Weekday::Wed => "周三".to_string(),
-                chrono::Weekday::Thu => "周四".to_string(),
-                chrono::Weekday::Fri => "周五".to_string(),
-                chrono::Weekday::Sat => "周六".to_string(),
-                chrono::Weekday::Sun => "周日".to_string(),
+                chrono::Weekday::Mon => "Monday".to_string(),
+                chrono::Weekday::Tue => "Tuesday".to_string(),
+                chrono::Weekday::Wed => "Wednesday".to_string(),
+                chrono::Weekday::Thu => "Thursday".to_string(),
+                chrono::Weekday::Fri => "Friday".to_string(),
+                chrono::Weekday::Sat => "Saturday".to_string(),
+                chrono::Weekday::Sun => "Sunday".to_string(),
             }
         }
         Err(_) => String::new(),
@@ -29,7 +29,7 @@ pub fn generate_day_markdown(
     contents: &[CapturedContent],
     export_dir: &Path,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let weekday = weekday_chinese(date);
+    let weekday = weekday_english(date);
     let mut md = format!("# {} {}\n\n", date, weekday);
 
     // Group contents by type
@@ -52,7 +52,7 @@ pub fn generate_day_markdown(
 
     // Text section
     if !texts.is_empty() {
-        md.push_str("## 文本\n\n");
+        md.push_str("## Text\n\n");
         for item in &texts {
             write_content_item(&mut md, item, export_dir);
         }
@@ -60,7 +60,7 @@ pub fn generate_day_markdown(
 
     // URL section
     if !urls.is_empty() {
-        md.push_str("## 链接\n\n");
+        md.push_str("## Links\n\n");
         for item in &urls {
             write_content_item(&mut md, item, export_dir);
         }
@@ -68,7 +68,7 @@ pub fn generate_day_markdown(
 
     // Image section
     if !images.is_empty() {
-        md.push_str("## 图片\n\n");
+        md.push_str("## Images\n\n");
         for item in &images {
             write_content_item(&mut md, item, export_dir);
         }
@@ -76,7 +76,7 @@ pub fn generate_day_markdown(
 
     // Mixed section
     if !mixed.is_empty() {
-        md.push_str("## 其他\n\n");
+        md.push_str("## Other\n\n");
         for item in &mixed {
             write_content_item(&mut md, item, export_dir);
         }
@@ -93,21 +93,21 @@ fn write_content_item(md: &mut String, item: &CapturedContent, export_dir: &Path
     // Summary
     if let Some(summary) = &item.summary {
         if !summary.is_empty() {
-            md.push_str(&format!("**摘要**: {}\n\n", summary));
+            md.push_str(&format!("**Summary**: {}\n\n", summary));
         }
     }
 
     // Tags
     if let Some(tags) = &item.tags {
         if !tags.is_empty() {
-            md.push_str(&format!("**标签**: {}\n\n", tags));
+            md.push_str(&format!("**Tags**: {}\n\n", tags));
         }
     }
 
     // Source URL (for link type)
     if let Some(url) = &item.source_url {
         if !url.is_empty() {
-            md.push_str(&format!("**链接**: [{}]({})\n\n", url, url));
+            md.push_str(&format!("**Link**: [{}]({})\n\n", url, url));
         }
     }
 
@@ -135,12 +135,12 @@ fn write_content_item(md: &mut String, item: &CapturedContent, export_dir: &Path
         if !text.is_empty() {
             match item.content_type {
                 ContentType::Image => {
-                    md.push_str("**OCR 识别文本**:\n\n");
+                    md.push_str("**OCR Text**:\n\n");
                     md.push_str(text);
                     md.push_str("\n\n");
                 }
                 ContentType::Url => {
-                    md.push_str("**原文内容**:\n\n");
+                    md.push_str("**Original Content**:\n\n");
                     md.push_str(text);
                     md.push_str("\n\n");
                 }
@@ -155,7 +155,7 @@ fn write_content_item(md: &mut String, item: &CapturedContent, export_dir: &Path
     // User note
     if let Some(note) = &item.user_note {
         if !note.is_empty() {
-            md.push_str(&format!("> **备注**: {}\n\n", note));
+            md.push_str(&format!("> **Note**: {}\n\n", note));
         }
     }
 
@@ -253,7 +253,7 @@ pub fn export_all_single_file(
     export_dir: &Path,
 ) -> Result<(PathBuf, usize), Box<dyn std::error::Error>> {
     let dates = repo.get_dates_with_content()?;
-    export_dates_to_single_file(&dates, repo, export_dir, "OpenWiki-全部内容")
+    export_dates_to_single_file(&dates, repo, export_dir, "OpenWiki-All-Content")
 }
 
 /// Export a date range into a single markdown file, grouped by date.
@@ -269,7 +269,7 @@ pub fn export_range_single_file(
         .into_iter()
         .filter(|(d, _)| d.as_str() >= start && d.as_str() <= end)
         .collect();
-    let filename = format!("OpenWiki-{}-至-{}", start, end);
+    let filename = format!("OpenWiki-{}-to-{}", start, end);
     export_dates_to_single_file(&filtered, repo, export_dir, &filename)
 }
 
@@ -300,7 +300,7 @@ fn export_dates_to_single_file(
     }
 
     if md.is_empty() {
-        return Err("没有可导出的内容".into());
+        return Err("No content to export".into());
     }
 
     let file_path = export_dir.join(format!("{}.md", filename));

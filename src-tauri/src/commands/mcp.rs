@@ -18,7 +18,7 @@ fn fallback_preview(item: &CapturedContent) -> String {
             return preview.replace('\n', " ");
         }
     }
-    "[图片]".to_string()
+    "[Image]".to_string()
 }
 
 // ─── MCP Integration ──────────────────────────────────────────────
@@ -164,15 +164,15 @@ fn is_process_running(name: &str) -> bool {
 
 /// Read and parse the Claude Desktop config file.
 fn read_config(path: &PathBuf) -> Result<serde_json::Value, String> {
-    let content = std::fs::read_to_string(path).map_err(|e| format!("无法读取配置文件: {}", e))?;
-    serde_json::from_str(&content).map_err(|e| format!("配置文件格式错误 (JSON 无效): {}", e))
+    let content = std::fs::read_to_string(path).map_err(|e| format!("Cannot read config file: {}", e))?;
+    serde_json::from_str(&content).map_err(|e| format!("Config file format error (invalid JSON): {}", e))
 }
 
 /// Write the config back to file.
 fn write_config(path: &PathBuf, config: &serde_json::Value) -> Result<(), String> {
     let content =
-        serde_json::to_string_pretty(config).map_err(|e| format!("JSON 序列化失败: {}", e))?;
-    std::fs::write(path, content).map_err(|e| format!("无法写入配置文件: {}", e))
+        serde_json::to_string_pretty(config).map_err(|e| format!("JSON serialization failed: {}", e))?;
+    std::fs::write(path, content).map_err(|e| format!("Cannot write config file: {}", e))
 }
 
 /// Create a timestamped backup of the config file.
@@ -182,7 +182,7 @@ fn backup_config(path: &PathBuf) -> Result<(), String> {
     }
     let timestamp = chrono::Local::now().format("%Y%m%d-%H%M%S");
     let backup_path = path.with_extension(format!("json.bak.{}", timestamp));
-    std::fs::copy(path, &backup_path).map_err(|e| format!("备份失败: {}", e))?;
+    std::fs::copy(path, &backup_path).map_err(|e| format!("Backup failed: {}", e))?;
     log::info!("Config backed up to {:?}", backup_path);
     Ok(())
 }
@@ -223,29 +223,29 @@ pub async fn connect_mcp(target: McpTarget) -> Result<String, String> {
 
     // 1. Check Node.js
     if !is_node_installed() {
-        return Err("需要安装 Node.js。请前往 https://nodejs.org 下载安装。".to_string());
+        return Err("Node.js is required. Please download and install from https://nodejs.org".to_string());
     }
 
     // 2. Check config directory
     let config_path = target
         .config_path()
-        .ok_or(format!("无法确定 {} 配置路径", name))?;
+        .ok_or(format!("Cannot determine {} config path", name))?;
     let config_dir = config_path
         .parent()
-        .ok_or(format!("无法确定 {} 配置目录", name))?;
+        .ok_or(format!("Cannot determine {} config directory", name))?;
 
     if !config_dir.exists() {
         // For OpenClaw, create the directory if it doesn't exist
         if target == McpTarget::Openclaw {
             std::fs::create_dir_all(config_dir)
-                .map_err(|e| format!("无法创建 OpenClaw 配置目录: {}", e))?;
+                .map_err(|e| format!("Cannot create OpenClaw config directory: {}", e))?;
         } else {
-            return Err(format!("{} 未安装。请先安装 {}。", name, name));
+            return Err(format!("{} is not installed. Please install {} first.", name, name));
         }
     }
 
     // 3. Get absolute db path
-    let db_path = xiaoyun_db_path().ok_or("无法确定 OpenWiki 数据库路径")?;
+    let db_path = xiaoyun_db_path().ok_or("Cannot determine OpenWiki database path")?;
 
     // 4. Read or create config
     let mut config = if config_path.exists() {
@@ -253,7 +253,7 @@ pub async fn connect_mcp(target: McpTarget) -> Result<String, String> {
         backup_config(&config_path)?;
         let c = read_config(&config_path)?;
         if !c.is_object() {
-            return Err("配置文件格式错误：不是有效的 JSON 对象".to_string());
+            return Err("Config file format error: not a valid JSON object".to_string());
         }
         c
     } else {
@@ -263,7 +263,7 @@ pub async fn connect_mcp(target: McpTarget) -> Result<String, String> {
     // 5. Inject xiaoyun MCP entry
     let mcp_servers = config
         .as_object_mut()
-        .ok_or("配置不是 JSON 对象")?
+        .ok_or("Config is not a JSON object")?
         .entry("mcpServers")
         .or_insert_with(|| serde_json::json!({}));
 
@@ -291,9 +291,9 @@ pub async fn connect_mcp(target: McpTarget) -> Result<String, String> {
 
     // 7. Check if the target app is running
     let msg = if is_process_running(target.process_name()) {
-        format!("连接成功！请退出并重新打开 {} 生效。", name)
+        format!("Connected! Please quit and reopen {} for changes to take effect.", name)
     } else {
-        format!("连接成功！下次打开 {} 即可使用。", name)
+        format!("Connected! Changes will take effect the next time you open {}.", name)
     };
 
     log::info!("MCP connected: xiaoyun entry added to {} config", name);
@@ -304,7 +304,7 @@ pub async fn connect_mcp(target: McpTarget) -> Result<String, String> {
 pub async fn disconnect_mcp(target: McpTarget) -> Result<(), String> {
     let config_path = target
         .config_path()
-        .ok_or(format!("无法确定 {} 配置路径", target.display_name()))?;
+        .ok_or(format!("Cannot determine {} config path", target.display_name()))?;
 
     if !config_path.exists() {
         return Ok(()); // Nothing to disconnect
@@ -339,12 +339,12 @@ pub async fn copy_content_summary(state: State<'_, AppState>) -> Result<(), Stri
         .map_err(|e| e.to_string())?;
 
     let text = if contents.is_empty() {
-        "最近 7 天没有保存的内容。".to_string()
+        "No saved content in the last 7 days.".to_string()
     } else {
         let total = contents.len();
         let mut lines = Vec::new();
         lines.push(format!(
-            "以下是我最近 7 天保存的内容（共 {} 条）：\n",
+            "Here is my saved content from the last 7 days ({} items):\n",
             total
         ));
 
@@ -368,7 +368,7 @@ pub async fn copy_content_summary(state: State<'_, AppState>) -> Result<(), Stri
 
             if tags.is_empty() {
                 lines.push(format!(
-                    "{}. [{}] [{}] 来自 {}: {}",
+                    "{}. [{}] [{}] from {}: {}",
                     i + 1,
                     date,
                     content_type,
@@ -377,7 +377,7 @@ pub async fn copy_content_summary(state: State<'_, AppState>) -> Result<(), Stri
                 ));
             } else {
                 lines.push(format!(
-                    "{}. [{}] [{}] 来自 {}: {} ({})",
+                    "{}. [{}] [{}] from {}: {} ({})",
                     i + 1,
                     date,
                     content_type,
@@ -388,15 +388,15 @@ pub async fn copy_content_summary(state: State<'_, AppState>) -> Result<(), Stri
             }
         }
 
-        lines.push("\n请帮我整理和分析这些内容。".to_string());
+        lines.push("\nPlease help me organize and analyze this content.".to_string());
         lines.join("\n")
     };
 
     // Write to clipboard directly via arboard
-    let mut clipboard = arboard::Clipboard::new().map_err(|e| format!("无法访问剪贴板: {}", e))?;
+    let mut clipboard = arboard::Clipboard::new().map_err(|e| format!("Cannot access clipboard: {}", e))?;
     clipboard
         .set_text(&text)
-        .map_err(|e| format!("写入剪贴板失败: {}", e))?;
+        .map_err(|e| format!("Failed to write to clipboard: {}", e))?;
 
     Ok(())
 }
@@ -425,7 +425,7 @@ mod tests {
         let f = make_temp_config("not json at all");
         let result = read_config(&f.path().to_path_buf());
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("JSON 无效"));
+        assert!(result.unwrap_err().contains("invalid JSON"));
     }
 
     #[test]

@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useState, useMemo, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { useTranslation } from "react-i18next";
 import { useContentStore } from "../../stores/contentStore";
 import { getAllContent } from "../../services/storageService";
 import { exportAllSingle, exportRangeSingle } from "../../services/dataHubService";
@@ -10,14 +11,15 @@ import type { ContentType } from "../../types/content";
 type FilterType = "all" | ContentType;
 type DateRange = "all" | "today" | "week" | "half-month";
 
-const FILTER_TABS: { value: FilterType; label: string; icon: string }[] = [
-  { value: "all", label: "全部", icon: "📋" },
-  { value: "text", label: "文本", icon: "📝" },
-  { value: "image", label: "图片", icon: "🖼️" },
-  { value: "url", label: "链接", icon: "🔗" },
+const FILTER_TABS: { value: FilterType; labelKey: string; icon: string }[] = [
+  { value: "all", labelKey: "filter.all", icon: "📋" },
+  { value: "text", labelKey: "filter.text", icon: "📝" },
+  { value: "image", labelKey: "filter.image", icon: "🖼️" },
+  { value: "url", labelKey: "filter.url", icon: "🔗" },
 ];
 
 export function ContentList() {
+  const { t } = useTranslation("content");
   const { contents, isLoading, setContents, setIsLoading } = useContentStore();
   const highlightedIds = useContentStore((s) => s.highlightedIds);
   const scrollToId = useContentStore((s) => s.scrollToId);
@@ -189,15 +191,15 @@ export function ContentList() {
           <span className="text-4xl">📭</span>
         </div>
         <div className="font-medium text-gray-600 dark:text-slate-300 mb-2">
-          还没有保存任何内容
+          {t("emptyTitle")}
         </div>
         <div className="text-sm text-gray-400 dark:text-slate-500 text-center max-w-xs">
-          复制文本或截图后会自动保存到这里
+          {t("emptyHint")}
         </div>
         <div className="mt-4 flex items-center gap-1.5 text-xs">
           <span className={`w-2 h-2 rounded-full ${captureEnabled ? "bg-green-400 animate-pulse" : "bg-gray-300 dark:bg-slate-600"}`} />
           <span className="text-gray-400 dark:text-slate-500">
-            {captureEnabled ? "内容捕获已开启" : "内容捕获已关闭"}
+            {captureEnabled ? t("captureOn") : t("captureOff")}
           </span>
         </div>
       </div>
@@ -226,7 +228,7 @@ export function ContentList() {
                 `}
               >
                 <span className="text-sm">{tab.icon}</span>
-                <span>{tab.label}</span>
+                <span>{t(tab.labelKey)}</span>
                 <span className={`
                   ml-0.5 px-1.5 py-0.5 rounded-full text-[10px]
                   ${isActive
@@ -243,7 +245,8 @@ export function ContentList() {
         <div className="flex items-center gap-1.5">
           {/* Date range filters */}
           {(["all", "today", "week", "half-month"] as DateRange[]).map((range) => {
-            const label = range === "all" ? "全部" : range === "today" ? "今天" : range === "week" ? "近一周" : "半个月";
+            const labelKey = range === "all" ? "dateRange.all" : range === "today" ? "dateRange.today" : range === "week" ? "dateRange.week" : "dateRange.halfMonth";
+            const label = t(labelKey);
             const isActive = dateRange === range;
             return (
               <button
@@ -304,13 +307,13 @@ export function ContentList() {
                 : "text-gray-400 dark:text-slate-500 border-gray-200/60 dark:border-white/[0.08] bg-white/60 dark:bg-white/[0.04] hover:border-orange-300 hover:text-orange-500"
               }`}
           >
-            {exportStatus === "confirm" ? "确认导出？" : exportStatus === "exporting" ? "导出中..." : exportStatus === "done" ? "✓ 已导出" : "↗ 导出"}
+            {exportStatus === "confirm" ? t("export.confirm") : exportStatus === "exporting" ? t("export.exporting") : exportStatus === "done" ? `✓ ${t("export.done")}` : `↗ ${t("export.button")}`}
           </button>
 
           {/* Capture status */}
           <div className="flex items-center gap-1 text-[11px] text-gray-400 dark:text-slate-500 ml-1">
             <span className={`w-1.5 h-1.5 rounded-full ${captureEnabled ? "bg-green-400" : "bg-gray-300 dark:bg-slate-600"}`} />
-            {captureEnabled ? "捕获中" : "已暂停"}
+            {captureEnabled ? t("capture.active") : t("capture.paused")}
           </div>
         </div>
       </div>
@@ -320,7 +323,7 @@ export function ContentList() {
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <span className="text-3xl mb-3">🔍</span>
           <p className="text-sm text-gray-500 dark:text-slate-400">
-            暂无{FILTER_TABS.find((t) => t.value === filter)?.label}类型的内容
+            {t("emptyFilter", { type: t(FILTER_TABS.find((tab) => tab.value === filter)?.labelKey ?? "filter.all") })}
           </p>
         </div>
       ) : (

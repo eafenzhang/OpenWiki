@@ -1,19 +1,21 @@
 import { useEffect, useCallback } from "react";
 import { BookOpen, User, FileText, GitCompare, Layers } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useWikiStore } from "../../stores/wikiStore";
 import { WikiPageCard } from "./WikiPageCard";
 import { WikiPageDetail } from "./WikiPageDetail";
 
 const TYPE_FILTERS = [
-  { id: null, label: "全部", icon: null },
-  { id: "concept", label: "概念", icon: BookOpen },
-  { id: "entity", label: "实体", icon: User },
-  { id: "source", label: "来源", icon: FileText },
-  { id: "comparison", label: "对比", icon: GitCompare },
-  { id: "overview", label: "总览", icon: Layers },
+  { id: null, labelKey: "browse.all", icon: null },
+  { id: "concept", labelKey: "browse.pageType.concept", icon: BookOpen },
+  { id: "entity", labelKey: "browse.pageType.entity", icon: User },
+  { id: "source", labelKey: "browse.pageType.source", icon: FileText },
+  { id: "comparison", labelKey: "browse.pageType.comparison", icon: GitCompare },
+  { id: "overview", labelKey: "browse.pageType.overview", icon: Layers },
 ] as const;
 
 export function WikiBrowseView() {
+  const { t } = useTranslation("wiki");
   const {
     pages, selectedPage, isLoadingPages, filterType, error,
     loadPages, selectPage, clearSelection, setFilterType, deletePage,
@@ -51,7 +53,7 @@ export function WikiBrowseView() {
                 }}
               >
                 {Icon && <Icon size={14} />}
-                <span>{f.label}</span>
+                <span>{t(f.labelKey)}</span>
               </button>
             );
           })}
@@ -79,10 +81,10 @@ export function WikiBrowseView() {
           <div className="text-center py-16">
             <BookOpen size={40} className="mx-auto mb-3" style={{ color: "var(--color-text-muted)" }} />
             <p style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)" }}>
-              知识库还是空的
+              {t("browse.emptyTitle")}
             </p>
             <p className="mt-1" style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-              捕获的内容会自动编译成知识页面，或在内容列表中点击「加入知识库」
+              {t("browse.emptyDescription")}
             </p>
           </div>
         )}

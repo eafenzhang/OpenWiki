@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { useTranslation } from "react-i18next";
 import type { CapturedContent } from "../../types/content";
 
 interface ImageFilmstripProps {
@@ -8,12 +9,13 @@ interface ImageFilmstripProps {
 }
 
 export function ImageFilmstrip({ items }: ImageFilmstripProps) {
+  const { t } = useTranslation("report");
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
   if (items.length === 0) {
     return (
       <div className="text-center py-8 text-xs text-gray-400 dark:text-slate-500">
-        本周没有图片内容
+        {t("imageList.empty")}
       </div>
     );
   }
@@ -26,7 +28,7 @@ export function ImageFilmstrip({ items }: ImageFilmstripProps) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v13.5A1.5 1.5 0 003.75 21z" />
         </svg>
         <span className="text-[11px] font-medium text-gray-500 dark:text-slate-400">
-          {items.length} 张图片
+          {t("imageList.count", { count: items.length })}
         </span>
       </div>
 

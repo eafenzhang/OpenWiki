@@ -1,21 +1,22 @@
 import { useEffect, useRef, useCallback, Component, type ReactNode } from "react";
 import { forceSimulation, forceLink, forceManyBody, forceCenter, forceX, forceY, type SimulationNodeDatum, type SimulationLinkDatum } from "d3-force";
+import { useTranslation } from "react-i18next";
 import { useWikiStore } from "../../stores/wikiStore";
 import { WikiPageDetail } from "./WikiPageDetail";
 
-class GraphErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+class GraphErrorBoundary extends Component<{ children: ReactNode; errorText: string; retryText: string }, { error: string | null }> {
   state = { error: null as string | null };
   static getDerivedStateFromError(e: Error) { return { error: e.message }; }
   render() {
     if (this.state.error) {
       return (
         <div className="flex flex-col items-center justify-center py-16 gap-2">
-          <p style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>图谱渲染出错</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)" }}>{this.props.errorText}</p>
           <p style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{this.state.error}</p>
           <button onClick={() => this.setState({ error: null })}
             className="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium"
             style={{ color: "#F97316", backgroundColor: "#F9731615", border: "1px solid #F9731630" }}>
-            重试
+            {this.props.retryText}
           </button>
         </div>
       );
@@ -30,6 +31,14 @@ const TYPE_COLORS: Record<string, string> = {
   source: "#16A34A",
   comparison: "#CA8A04",
   overview: "#7C3AED",
+};
+
+const TYPE_LABEL_KEYS: Record<string, string> = {
+  concept: "browse.pageType.concept",
+  entity: "browse.pageType.entity",
+  source: "browse.pageType.source",
+  comparison: "browse.pageType.comparison",
+  overview: "browse.pageType.overview",
 };
 
 interface GNode extends SimulationNodeDatum {
@@ -47,6 +56,7 @@ interface GLink extends SimulationLinkDatum<GNode> {
 }
 
 function WikiGraphViewInner() {
+  const { t } = useTranslation("wiki");
   const { graphData, isLoadingGraph, loadGraph, selectedPage, selectPage, clearSelection, deletePage } = useWikiStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -301,7 +311,7 @@ function WikiGraphViewInner() {
           <div key={type} className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
             <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
-              {type === "concept" ? "概念" : type === "entity" ? "实体" : type === "source" ? "来源" : type === "comparison" ? "对比" : "总览"}
+              {t(TYPE_LABEL_KEYS[type])}
             </span>
           </div>
         ))}
@@ -328,8 +338,9 @@ function WikiGraphViewInner() {
 
 const _WikiGraphViewInner = WikiGraphViewInner;
 export function WikiGraphView() {
+  const { t } = useTranslation("wiki");
   return (
-    <GraphErrorBoundary>
+    <GraphErrorBoundary errorText={t("graph.error")} retryText={t("graph.retry")}>
       <_WikiGraphViewInner />
     </GraphErrorBoundary>
   );

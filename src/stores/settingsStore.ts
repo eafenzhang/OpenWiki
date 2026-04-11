@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { getSettings, updateSetting, checkXReaderStatus, type XReaderStatus } from "../services/settingsService";
+import { setAppLanguage, getSystemLanguage, initLanguageFromSettings } from "../i18n";
 
 export type AIProvider = "anthropic" | "openai" | "openrouter" | "dashscope" | "google" | "minimax";
 
@@ -18,7 +19,7 @@ export const MODELS_BY_PROVIDER: Record<AIProvider, AIModelOption[]> = {
     { id: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku" },
   ],
   openai: [
-    { id: "auto", label: "Auto (智能选择)" },
+    { id: "auto", label: "Auto" },
     { id: "gpt-5.4", label: "GPT-5.4" },
     { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
     { id: "gpt-5.3-codex", label: "GPT-5.3 Codex" },
@@ -29,24 +30,24 @@ export const MODELS_BY_PROVIDER: Record<AIProvider, AIModelOption[]> = {
     { id: "gpt-5.1-codex-mini", label: "GPT-5.1 Codex Mini" },
   ],
   openrouter: [
-    // ── 🆓 自动选择（默认）──
-    { id: "openrouter/free", label: "自动选择免费模型", free: true, group: "免费推荐" },
-    // ── 🆓 免费模型（推荐）──
-    { id: "nousresearch/hermes-3-llama-3.1-405b:free", label: "Hermes 3 405B", free: true, group: "免费推荐" },
-    { id: "qwen/qwen3-coder:free", label: "Qwen3 Coder 480B", free: true, group: "免费推荐" },
-    { id: "openai/gpt-oss-120b:free", label: "GPT-OSS 120B", free: true, group: "免费推荐" },
-    { id: "nvidia/nemotron-3-super-120b-a12b:free", label: "Nemotron 3 Super 120B", free: true, group: "免费推荐" },
-    { id: "qwen/qwen3-next-80b-a3b-instruct:free", label: "Qwen3 Next 80B", free: true, group: "免费推荐" },
-    { id: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B", free: true, group: "免费推荐" },
-    { id: "minimax/minimax-m2.5:free", label: "MiniMax M2.5", free: true, group: "免费推荐" },
-    { id: "z-ai/glm-4.5-air:free", label: "GLM 4.5 Air (智谱)", free: true, group: "免费推荐" },
-    // ── 🆓 更多免费 ──
-    { id: "google/gemma-4-31b-it:free", label: "Gemma 4 31B", free: true, group: "更多免费" },
-    { id: "google/gemma-4-26b-a4b-it:free", label: "Gemma 4 26B", free: true, group: "更多免费" },
-    { id: "google/gemma-3-27b-it:free", label: "Gemma 3 27B", free: true, group: "更多免费" },
-    { id: "nvidia/nemotron-3-nano-30b-a3b:free", label: "Nemotron 3 Nano 30B", free: true, group: "更多免费" },
-    { id: "openai/gpt-oss-20b:free", label: "GPT-OSS 20B", free: true, group: "更多免费" },
-    { id: "arcee-ai/trinity-large-preview:free", label: "Trinity Large 400B", free: true, group: "更多免费" },
+    // ── Auto (default) ──
+    { id: "openrouter/free", label: "Auto Free", free: true, group: "Free" },
+    // ── Free models ──
+    { id: "nousresearch/hermes-3-llama-3.1-405b:free", label: "Hermes 3 405B", free: true, group: "Free" },
+    { id: "qwen/qwen3-coder:free", label: "Qwen3 Coder 480B", free: true, group: "Free" },
+    { id: "openai/gpt-oss-120b:free", label: "GPT-OSS 120B", free: true, group: "Free" },
+    { id: "nvidia/nemotron-3-super-120b-a12b:free", label: "Nemotron 3 Super 120B", free: true, group: "Free" },
+    { id: "qwen/qwen3-next-80b-a3b-instruct:free", label: "Qwen3 Next 80B", free: true, group: "Free" },
+    { id: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B", free: true, group: "Free" },
+    { id: "minimax/minimax-m2.5:free", label: "MiniMax M2.5", free: true, group: "Free" },
+    { id: "z-ai/glm-4.5-air:free", label: "GLM 4.5 Air", free: true, group: "Free" },
+    // ── More free ──
+    { id: "google/gemma-4-31b-it:free", label: "Gemma 4 31B", free: true, group: "More Free" },
+    { id: "google/gemma-4-26b-a4b-it:free", label: "Gemma 4 26B", free: true, group: "More Free" },
+    { id: "google/gemma-3-27b-it:free", label: "Gemma 3 27B", free: true, group: "More Free" },
+    { id: "nvidia/nemotron-3-nano-30b-a3b:free", label: "Nemotron 3 Nano 30B", free: true, group: "More Free" },
+    { id: "openai/gpt-oss-20b:free", label: "GPT-OSS 20B", free: true, group: "More Free" },
+    { id: "arcee-ai/trinity-large-preview:free", label: "Trinity Large 400B", free: true, group: "More Free" },
     // ── Anthropic ──
     { id: "anthropic/claude-opus-4.6", label: "Claude Opus 4.6", group: "Anthropic" },
     { id: "anthropic/claude-sonnet-4.6", label: "Claude Sonnet 4.6", group: "Anthropic" },
@@ -66,9 +67,9 @@ export const MODELS_BY_PROVIDER: Record<AIProvider, AIModelOption[]> = {
     // ── xAI ──
     { id: "x-ai/grok-4.20", label: "Grok 4.20", group: "xAI" },
     { id: "x-ai/grok-4.1-fast", label: "Grok 4.1 Fast", group: "xAI" },
-    // ── 智谱 ──
-    { id: "z-ai/glm-5.1", label: "GLM 5.1", group: "智谱" },
-    { id: "z-ai/glm-5", label: "GLM 5", group: "智谱" },
+    // ── Zhipu ──
+    { id: "z-ai/glm-5.1", label: "GLM 5.1", group: "Zhipu" },
+    { id: "z-ai/glm-5", label: "GLM 5", group: "Zhipu" },
     // ── Qwen ──
     { id: "qwen/qwen3.6-plus", label: "Qwen3.6 Plus", group: "Qwen" },
     { id: "qwen/qwen3-coder-next", label: "Qwen3 Coder Next", group: "Qwen" },
@@ -85,12 +86,12 @@ export const MODELS_BY_PROVIDER: Record<AIProvider, AIModelOption[]> = {
     { id: "qwen-long", label: "Qwen Long" },
   ],
   google: [
-    { id: "auto", label: "Auto (智能选择)" },
+    { id: "auto", label: "Auto" },
     { id: "gemini-3-flash", label: "Gemini 3 Flash" },
     { id: "gemini-3-pro-low", label: "Gemini 3 Pro" },
-    { id: "gemini-3-pro-high", label: "Gemini 3 Pro (深度推理)" },
+    { id: "gemini-3-pro-high", label: "Gemini 3 Pro (Deep)" },
     { id: "gemini-3.1-pro-low", label: "Gemini 3.1 Pro" },
-    { id: "gemini-3.1-pro-high", label: "Gemini 3.1 Pro (深度推理)" },
+    { id: "gemini-3.1-pro-high", label: "Gemini 3.1 Pro (Deep)" },
     { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
     { id: "claude-opus-4-6-thinking", label: "Claude Opus 4.6" },
   ],
@@ -105,7 +106,7 @@ export const PROVIDER_LABELS: Record<AIProvider, string> = {
   anthropic: "Anthropic",
   openai: "OpenAI",
   openrouter: "OpenRouter",
-  dashscope: "阿里云百炼",
+  dashscope: "DashScope",
   google: "Google",
   minimax: "MiniMax",
 };
@@ -117,6 +118,7 @@ export type BubbleStyle = "circle" | "bar";
 export type BubblePosition = "bottom-right" | "bottom-center" | "bottom-left" | "top-right" | "top-center" | "top-left";
 export type DefaultAction = "save" | "dismiss";
 export type ThemeMode = "light" | "dark" | "system";
+export type LanguageMode = "system" | "zh-CN" | "en-US";
 
 const VALID_BUBBLE_POSITIONS: BubblePosition[] = [
   "bottom-right", "bottom-center", "bottom-left",
@@ -184,6 +186,8 @@ interface SettingsState {
   provider: AIProvider;
   model: string;
   theme: ThemeMode;
+  languageMode: LanguageMode;
+  resolvedLanguage: string;
   captureEnabled: boolean;
   captureMode: CaptureMode;
   bubbleStyle: BubbleStyle;
@@ -217,6 +221,7 @@ interface SettingsState {
   setProvider: (provider: AIProvider) => void;
   setModel: (model: string) => void;
   setTheme: (theme: ThemeMode) => void;
+  setLanguageMode: (mode: LanguageMode) => void;
   setCaptureEnabled: (enabled: boolean) => void;
   setCaptureMode: (mode: CaptureMode) => void;
   setBubbleStyle: (style: BubbleStyle) => void;
@@ -239,6 +244,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   provider: "anthropic",
   model: "claude-sonnet-4-20250514",
   theme: "system",
+  languageMode: "system" as LanguageMode,
+  resolvedLanguage: getSystemLanguage(),
   captureEnabled: true,
   captureMode: "confirm" as CaptureMode,
   bubbleStyle: "circle" as BubbleStyle,
@@ -295,11 +302,19 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
       applyTheme(theme);
 
+      const languageMode = (["system", "zh-CN", "en-US"].includes(settings.language_mode)
+        ? settings.language_mode
+        : "system") as LanguageMode;
+      const resolvedLanguage = languageMode === "system" ? getSystemLanguage() : languageMode;
+      initLanguageFromSettings(languageMode);
+
       set({
         apiKey,
         provider,
         model,
         theme,
+        languageMode,
+        resolvedLanguage,
         captureEnabled: settings.capture_enabled !== "false",
         captureMode: (settings.capture_mode === "auto" ? "auto" : "confirm") as CaptureMode,
         bubbleStyle: (settings.bubble_style === "bar" ? "bar" : "circle") as BubbleStyle,
@@ -374,6 +389,15 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     applyTheme(theme);
     updateSetting("theme", theme).catch((e) =>
       console.error("Failed to save theme:", e)
+    );
+  },
+
+  setLanguageMode: (mode) => {
+    const resolved = mode === "system" ? getSystemLanguage() : mode;
+    set({ languageMode: mode, resolvedLanguage: resolved });
+    setAppLanguage(mode);
+    updateSetting("language_mode", mode).catch((e) =>
+      console.error("Failed to save language_mode:", e)
     );
   },
 

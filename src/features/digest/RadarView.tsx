@@ -1,4 +1,5 @@
 import { useState, useEffect, Component, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { RefreshCw, Key, Target, Search } from "lucide-react";
 import { useRadarStore } from "../../stores/radarStore";
 import type {
@@ -18,7 +19,7 @@ import type {
 const ACCENT = "#F97316";
 
 // Error boundary
-class RadarErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+class RadarErrorBoundary extends Component<{ children: ReactNode; errorTitle: string; retryLabel: string }, { error: string | null }> {
   state = { error: null as string | null };
   static getDerivedStateFromError(error: Error) {
     return { error: error.message };
@@ -27,14 +28,14 @@ class RadarErrorBoundary extends Component<{ children: ReactNode }, { error: str
     if (this.state.error) {
       return (
         <div className="px-5 py-8" style={{ color: "var(--color-text-primary)" }}>
-          <h2 className="text-lg font-bold mb-2">洞察加载出错</h2>
+          <h2 className="text-lg font-bold mb-2">{this.props.errorTitle}</h2>
           <p style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>{this.state.error}</p>
           <button
             onClick={() => this.setState({ error: null })}
             className="mt-3 font-medium"
             style={{ fontSize: 13, color: ACCENT }}
           >
-            重试
+            {this.props.retryLabel}
           </button>
         </div>
       );
@@ -44,14 +45,16 @@ class RadarErrorBoundary extends Component<{ children: ReactNode }, { error: str
 }
 
 export function RadarView() {
+  const { t } = useTranslation("digest");
   return (
-    <RadarErrorBoundary>
+    <RadarErrorBoundary errorTitle={t("radar.errorTitle")} retryLabel={t("radar.retry")}>
       <RadarViewInner />
     </RadarErrorBoundary>
   );
 }
 
 function RadarViewInner() {
+  const { t } = useTranslation("digest");
   const {
     status,
     analysis,
@@ -91,7 +94,7 @@ function RadarViewInner() {
               letterSpacing: "-0.3px",
             }}
           >
-            深度洞察
+            {t("radar.title")}
           </h2>
           <div className="flex items-center gap-1">
             <button
@@ -100,7 +103,7 @@ function RadarViewInner() {
               className="p-2 rounded-lg text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300
                          hover:bg-stone-100 dark:hover:bg-white/[0.08]
                          disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-              title="刷新分析"
+              title={t("radar.refreshTitle")}
             >
               <RefreshCw size={18} strokeWidth={2} className={isAnalyzing ? "animate-spin" : ""} />
             </button>
@@ -108,7 +111,7 @@ function RadarViewInner() {
         </div>
         {!isLoading && hasFindings && (
           <p style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-            AI 深度分析你的信息收藏行为
+            {t("radar.subtitle")}
           </p>
         )}
       </div>
@@ -121,15 +124,15 @@ function RadarViewInner() {
         {!isLoading && status === "no_api_key" && (
           <EmptyState
             icon={<Key size={48} className="text-stone-300 dark:text-stone-600 mb-4" strokeWidth={1.5} />}
-            title="需要配置 AI 服务"
-            desc="洞察报告需要 AI 来分析你的内容"
+            title={t("radar.emptyNeedApiKey.title")}
+            desc={t("radar.emptyNeedApiKey.desc")}
           />
         )}
         {!isLoading && status === "not_enough_content" && (
           <EmptyState
             icon={<Target size={48} className="text-stone-300 dark:text-stone-600 mb-4" strokeWidth={1.5} />}
-            title="你离洞察只差几步"
-            desc="继续保存你感兴趣的内容，积累到 5 条就能开始分析"
+            title={t("radar.emptyNotEnough.title")}
+            desc={t("radar.emptyNotEnough.desc")}
           />
         )}
         {!isLoading && !isAnalyzing && !hasFindings &&
@@ -137,17 +140,17 @@ function RadarViewInner() {
          status !== "error" && (
           <EmptyState
             icon={<Search size={48} className="text-stone-300 dark:text-stone-600 mb-4" strokeWidth={1.5} />}
-            title="这两周比较分散"
-            desc="没有特别集中的方向。继续保存，下次分析可能会有新发现。"
+            title={t("radar.emptyScattered.title")}
+            desc={t("radar.emptyScattered.desc")}
           />
         )}
         {!isLoading && status === "error" && (
           <div className="rounded-xl p-4 mt-4" style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
             <p className="text-red-700 dark:text-red-400 mb-2" style={{ fontSize: 13 }}>
-              {errorMessage || "分析时出现错误"}
+              {errorMessage || t("radar.errorDefault")}
             </p>
             <button onClick={() => triggerAnalysis()} className="font-medium hover:underline" style={{ fontSize: 13, color: ACCENT }}>
-              重新分析
+              {t("radar.reanalyze")}
             </button>
           </div>
         )}
@@ -156,31 +159,31 @@ function RadarViewInner() {
         {!isLoading && hasReport && report && (
           <div>
             <StatsGrid report={report} />
-            <Section num="01" title="一眼看穿" subtitle="At a Glance">
+            <Section num="01" title={t("radar.sections.atAGlance")} subtitle={t("radar.sections.atAGlanceSubtitle")}>
               <AtAGlanceBody items={report.at_a_glance} />
             </Section>
-            <Section num="02" title="信息食谱" subtitle="摄入结构">
+            <Section num="02" title={t("radar.sections.infoDiet")} subtitle={t("radar.sections.infoDietSubtitle")}>
               <InfoDietBody diet={report.info_diet} />
             </Section>
-            <Section num="03" title="潜意识洞察" subtitle="没意识到的关注">
+            <Section num="03" title={t("radar.sections.subconscious")} subtitle={t("radar.sections.subconsciousSubtitle")}>
               <SubconsciousBody items={report.subconscious} />
             </Section>
-            <Section num="04" title="收藏夹坟场" subtitle="沉没风险">
+            <Section num="04" title={t("radar.sections.graveyard")} subtitle={t("radar.sections.graveyardSubtitle")}>
               <GraveyardBody graveyard={report.graveyard} />
             </Section>
-            <Section num="05" title="知识空白" subtitle="被忽视的角度">
+            <Section num="05" title={t("radar.sections.blindSpots")} subtitle={t("radar.sections.blindSpotsSubtitle")}>
               <BlindSpotsBody items={report.blind_spots} />
             </Section>
-            <Section num="06" title="行动建议" subtitle="可执行">
+            <Section num="06" title={t("radar.sections.actions")} subtitle={t("radar.sections.actionsSubtitle")}>
               <ActionsBody items={report.actions} />
             </Section>
-            <Section num="⊹" title="时间热力图" subtitle="每日分布">
+            <Section num="⊹" title={t("radar.sections.heatmap")} subtitle={t("radar.sections.heatmapSubtitle")}>
               <HeatmapBody days={report.heatmap} />
               <div style={{ height: 1, backgroundColor: "var(--color-border)", margin: "16px 0" }} />
-              <div style={{ fontSize: 11, color: "var(--color-text-muted)", textTransform: "uppercase", marginBottom: 10 }}>主题分布</div>
+              <div style={{ fontSize: 11, color: "var(--color-text-muted)", textTransform: "uppercase", marginBottom: 10 }}>{t("radar.sections.topicDistribution")}</div>
               <TopicCloudBody items={report.topic_cloud} />
             </Section>
-            <Section num="07" title="一句话总结" subtitle="Final Verdict">
+            <Section num="07" title={t("radar.sections.verdict")} subtitle={t("radar.sections.verdictSubtitle")}>
               <VerdictBody verdict={report.verdict} />
             </Section>
             <ReportFooter footer={report.footer} />
@@ -188,7 +191,7 @@ function RadarViewInner() {
             {isAnalyzing && (
               <div className="text-center py-6">
                 <RefreshCw size={16} className="animate-spin text-stone-400 mx-auto mb-2" />
-                <p className="text-stone-400" style={{ fontSize: 13 }}>正在更新分析...</p>
+                <p className="text-stone-400" style={{ fontSize: 13 }}>{t("radar.updating")}</p>
               </div>
             )}
           </div>
@@ -236,13 +239,14 @@ function WikiLintSectionLazy() {
 // ====================================================================
 
 function StatsGrid({ report }: { report: { meta: { total_items: number; active_days: number; annotated_items: number; annotation_rate: string; source_count: number }; footer: { total_days: number } } }) {
+  const { t } = useTranslation("digest");
   const { meta } = report;
   const stats = [
-    { n: meta.total_items, l: "保存条目" },
-    { n: meta.active_days, l: "活跃天数" },
-    { n: meta.annotated_items, l: "带备注" },
-    { n: meta.annotation_rate, l: "主动率" },
-    { n: meta.source_count, l: "信息源" },
+    { n: meta.total_items, l: t("radar.stats.savedItems") },
+    { n: meta.active_days, l: t("radar.stats.activeDays") },
+    { n: meta.annotated_items, l: t("radar.stats.annotated") },
+    { n: meta.annotation_rate, l: t("radar.stats.annotationRate") },
+    { n: meta.source_count, l: t("radar.stats.sources") },
   ];
 
   return (
@@ -342,11 +346,12 @@ function AtAGlanceBody({ items }: { items: Glance[] }) {
 // ====================================================================
 
 function InfoDietBody({ diet }: { diet: InfoDiet }) {
+  const { t } = useTranslation("digest");
   const maxCount = Math.max(...diet.sources.map((s) => s.count), 1);
 
   return (
     <>
-      <div style={{ fontSize: 11, color: "var(--color-text-muted)", textTransform: "uppercase", marginBottom: 10 }}>来源分布</div>
+      <div style={{ fontSize: 11, color: "var(--color-text-muted)", textTransform: "uppercase", marginBottom: 10 }}>{t("radar.infoDiet.sourceDistribution")}</div>
       <div className="space-y-2 mb-4">
         {diet.sources.map((src) => (
           <div key={src.name} className="flex items-center gap-3">
@@ -361,7 +366,7 @@ function InfoDietBody({ diet }: { diet: InfoDiet }) {
                   background: sourceGradient(src.color),
                 }}
               >
-                <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{src.count}条</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{src.count}{t("radar.infoDiet.itemsUnit")}</span>
               </div>
             </div>
           </div>
@@ -370,9 +375,9 @@ function InfoDietBody({ diet }: { diet: InfoDiet }) {
 
       {/* Metrics */}
       <div className="grid grid-cols-2 gap-3 mb-4">
-        <MiniCard title="深度vs碎片" value={diet.depth_ratio.label} percent={parsePercent(diet.depth_ratio.label)} />
+        <MiniCard title={t("radar.infoDiet.depthVsFragment")} value={diet.depth_ratio.label} percent={parsePercent(diet.depth_ratio.label)} />
         <MiniCard
-          title="偏食度"
+          title={t("radar.infoDiet.dietBias")}
           value={`${diet.dominant_topic.name} ${diet.dominant_topic.percent.toFixed(0)}%`}
           percent={diet.dominant_topic.percent}
         />
@@ -414,6 +419,7 @@ function MiniCard({ title, value, percent }: { title: string; value: string; per
 // ====================================================================
 
 function SubconsciousBody({ items }: { items: SubconsciousItem[] }) {
+  const { t } = useTranslation("digest");
   return (
     <div className="space-y-3">
       {items.map((item, i) => (
@@ -431,7 +437,7 @@ function SubconsciousBody({ items }: { items: SubconsciousItem[] }) {
             </span>
             {item.evidence_count != null && (
               <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: ACCENT, whiteSpace: "nowrap" }}>
-                {item.evidence_count} 条证据
+                {t("radar.subconscious.evidenceCount", { count: item.evidence_count })}
               </span>
             )}
           </div>
@@ -447,6 +453,7 @@ function SubconsciousBody({ items }: { items: SubconsciousItem[] }) {
 // ====================================================================
 
 function GraveyardBody({ graveyard }: { graveyard: Graveyard }) {
+  const { t } = useTranslation("digest");
   return (
     <>
       {/* Alert */}
@@ -463,7 +470,7 @@ function GraveyardBody({ graveyard }: { graveyard: Graveyard }) {
         <span>{graveyard.alert}</span>
       </div>
 
-      <div style={{ fontSize: 11, color: "var(--color-text-muted)", textTransform: "uppercase", marginBottom: 10 }}>值得重读</div>
+      <div style={{ fontSize: 11, color: "var(--color-text-muted)", textTransform: "uppercase", marginBottom: 10 }}>{t("radar.graveyard.worthReading")}</div>
 
       <div className="space-y-3">
         {graveyard.top_picks.map((pick) => (
@@ -691,10 +698,11 @@ function VerdictBody({ verdict }: { verdict: Verdict }) {
 // ====================================================================
 
 function ReportFooter({ footer }: { footer: Footer }) {
+  const { t } = useTranslation("digest");
   return (
     <div className="text-center py-4 mt-2" style={{ borderTop: "1px solid var(--color-border)" }}>
       <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "var(--color-text-muted)" }}>
-        <strong>OpenWiki 洞察</strong> · {footer.date_range} · {footer.total} 条内容 · {footer.active_days}/{footer.total_days} 天活跃
+        <strong>{t("radar.footer.brand")}</strong> · {footer.date_range} · {t("radar.footer.itemsCount", { count: footer.total })} · {t("radar.footer.activeDays", { active: footer.active_days, total: footer.total_days })}
       </div>
     </div>
   );
@@ -705,6 +713,7 @@ function ReportFooter({ footer }: { footer: Footer }) {
 // ====================================================================
 
 function LegacyBriefingHero({ topic }: { topic: BriefingTopic }) {
+  const { t } = useTranslation("digest");
   return (
     <div className="rounded-xl p-4 mb-3" style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
       <div className="flex items-center gap-1.5 mb-3">
@@ -724,19 +733,20 @@ function LegacyBriefingHero({ topic }: { topic: BriefingTopic }) {
       )}
       {topic.suggestion && (
         <div className="rounded-lg p-3 mb-3" style={{ backgroundColor: `${ACCENT}10`, border: `1px solid ${ACCENT}30` }}>
-          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: ACCENT, marginBottom: 4 }}>建议</div>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: ACCENT, marginBottom: 4 }}>{t("radar.legacy.suggestion")}</div>
           <div style={{ fontSize: 13, lineHeight: 1.5, color: "var(--color-text-secondary)" }}>{topic.suggestion}</div>
         </div>
       )}
       <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)", fontSize: 11, color: "var(--color-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
-        {topic.content_count} 条内容 · 持续 {topic.span_days} 天
+        {t("radar.legacy.contentCount", { count: topic.content_count })} · {t("radar.legacy.spanDays", { count: topic.span_days })}
       </div>
     </div>
   );
 }
 
 function LegacyBriefingSecondary({ topic }: { topic: BriefingTopic }) {
-  const tagColor = topic.tag === "新兴关注" ? "#4ADE80" : "#3B82F6";
+  const { t } = useTranslation("digest");
+  const tagColor = topic.tag === t("insight.tag.emergingInterest") ? "#4ADE80" : "#3B82F6";
   const truncatedAnalysis = topic.deep_analysis.length > 80 ? topic.deep_analysis.slice(0, 80) + "..." : topic.deep_analysis;
 
   return (
@@ -748,7 +758,7 @@ function LegacyBriefingSecondary({ topic }: { topic: BriefingTopic }) {
       <h4 className="mb-1.5" style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.35 }}>{topic.insight_title}</h4>
       <p className="mb-2.5" style={{ fontSize: 12, lineHeight: 1.5, color: "var(--color-text-muted)" }}>{truncatedAnalysis}</p>
       <div style={{ fontSize: 10, color: "var(--color-text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
-        {topic.content_count} 条 · {topic.span_days} 天
+        {t("radar.legacy.itemsShort", { count: topic.content_count })} · {t("radar.legacy.daysShort", { count: topic.span_days })}
       </div>
     </div>
   );
@@ -840,15 +850,15 @@ function LoadingSkeleton() {
 }
 
 function AnalyzingSkeleton() {
+  const { t } = useTranslation("digest");
   return (
     <div className="space-y-3 mt-6">
       <div className="h-20 bg-stone-100 dark:bg-white/[0.06] rounded-xl animate-pulse" />
       <div className="h-48 bg-stone-100 dark:bg-white/[0.06] rounded-xl animate-pulse" />
       <div className="text-center py-4">
         <RefreshCw size={16} className="animate-spin text-stone-400 mx-auto mb-2" />
-        <p className="text-stone-400" style={{ fontSize: 13 }}>正在深度分析你的内容...</p>
+        <p className="text-stone-400" style={{ fontSize: 13 }}>{t("radar.analyzing")}</p>
       </div>
     </div>
   );
 }
-

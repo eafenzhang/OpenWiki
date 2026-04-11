@@ -1,0 +1,64 @@
+{
+  "nav": {
+    "content": "Content",
+    "wiki": "Wiki",
+    "digest": "Insights",
+    "settings": "Settings"
+  },
+  "action": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "retry": "Retry",
+    "close": "Close",
+    "copy": "Copy",
+    "search": "Search",
+    "refresh": "Refresh",
+    "generate": "Generate",
+    "regenerate": "Regenerate",
+    "export": "Export",
+    "back": "Back",
+    "edit": "Edit",
+    "loading": "Loading...",
+    "noData": "No data"
+  },
+  "time": {
+    "justNow": "Just now",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thisWeek": "This week",
+    "lastWeek": "Last week"
+  },
+  "contentType": {
+    "text": "Text",
+    "image": "Image",
+    "url": "Link",
+    "mixed": "Mixed"
+  },
+  "error": {
+    "loadFailed": "Failed to load",
+    "saveFailed": "Failed to save",
+    "networkError": "Network error",
+    "unknown": "Unknown error",
+    "readFailed": "Read failed"
+  },
+  "bubble": {
+    "screenshotImage": "Screenshot / Image",
+    "linkContent": "Link content",
+    "textContent": "Text content",
+    "memoPlaceholder": "Add a note... (Enter to save, Esc to cancel)",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "autoSaveCountdown": "Auto-save in {{countdown}}s",
+    "autoDismissCountdown": "Auto-dismiss in {{countdown}}s",
+    "clickToSave": "Click to save"
+  },
+  "spotlight": {
+    "addNotePlaceholder": "Add a note, press Enter to save...",
+    "waitingForContent": "Waiting for content..."
+  }
+}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { List, Share2, MessageCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useWikiStore } from "../../stores/wikiStore";
 import { WikiBrowseView } from "./WikiBrowseView";
 import { WikiGraphView } from "./WikiGraphView";
@@ -8,6 +9,7 @@ import { WikiAskSidebar } from "./WikiAskSidebar";
 type SubView = "browse" | "graph";
 
 export function WikiView() {
+  const { t } = useTranslation("wiki");
   const [subView, setSubView] = useState<SubView>("browse");
   const { stats, loadStats, selectPage } = useWikiStore();
   const [askOpen, setAskOpen] = useState(false);
@@ -37,13 +39,13 @@ export function WikiView() {
                 letterSpacing: "-0.3px",
               }}
             >
-              知识库
+              {t("title")}
             </h2>
             {stats && stats.total_pages > 0 && (
               <p style={{ fontSize: 12, color: "var(--color-text-muted, #A8A29E)", marginTop: 2 }}>
-                {stats.total_pages} 个知识页面 · {stats.total_edges} 个关联 · {stats.total_sources} 条来源
+                {stats.total_pages} {t("stats.pages")} · {stats.total_edges} {t("stats.edges")} · {stats.total_sources} {t("stats.sources")}
                 {stats.needs_recompile > 0 && (
-                  <span className="text-amber-500"> · {stats.needs_recompile} 个待更新</span>
+                  <span className="text-amber-500"> · {stats.needs_recompile} {t("stats.needsRecompile")}</span>
                 )}
               </p>
             )}
@@ -60,7 +62,7 @@ export function WikiView() {
                 }`}
             >
               <MessageCircle size={13} />
-              <span>提问</span>
+              <span>{t("tabs.ask")}</span>
             </button>
             <div className="inline-flex bg-stone-100/60 dark:bg-white/[0.06] rounded-md p-0.5">
               <button
@@ -72,7 +74,7 @@ export function WikiView() {
                   }`}
               >
                 <List size={13} />
-                <span>浏览</span>
+                <span>{t("tabs.browse")}</span>
               </button>
               <button
                 onClick={() => setSubView("graph")}
@@ -83,7 +85,7 @@ export function WikiView() {
                   }`}
               >
                 <Share2 size={13} />
-                <span>图谱</span>
+                <span>{t("tabs.graph")}</span>
               </button>
             </div>
           </div>

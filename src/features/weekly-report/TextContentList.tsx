@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import type { CapturedContent } from "../../types/content";
 
 interface TextContentListProps {
@@ -7,10 +8,12 @@ interface TextContentListProps {
 }
 
 export function TextContentList({ items }: TextContentListProps) {
+  const { t } = useTranslation("report");
+
   if (items.length === 0) {
     return (
       <div className="text-center py-8 text-xs text-gray-400 dark:text-slate-500">
-        本周没有文本内容
+        {t("textList.empty")}
       </div>
     );
   }
@@ -23,7 +26,7 @@ export function TextContentList({ items }: TextContentListProps) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
         </svg>
         <span className="text-[11px] font-medium text-gray-500 dark:text-slate-400">
-          {items.length} 条文本
+          {t("textList.count", { count: items.length })}
         </span>
       </div>
 
@@ -38,6 +41,7 @@ export function TextContentList({ items }: TextContentListProps) {
 }
 
 function TextRow({ item, index }: { item: CapturedContent; index: number }) {
+  const { t } = useTranslation("report");
   const [expanded, setExpanded] = useState(false);
   const text = item.raw_text || "";
   const preview = text.length > 120 ? text.slice(0, 120) + "..." : text;
@@ -63,7 +67,7 @@ function TextRow({ item, index }: { item: CapturedContent; index: number }) {
         </span>
         {text.length > 120 && (
           <span className="text-[10px] text-blue-400 dark:text-blue-500 ml-auto">
-            {expanded ? "收起" : "展开"}
+            {expanded ? t("textList.collapse") : t("textList.expand")}
           </span>
         )}
       </div>

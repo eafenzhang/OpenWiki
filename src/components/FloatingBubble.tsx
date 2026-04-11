@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 
 /** Countdown seconds before auto-dismiss */
 const COUNTDOWN_SECONDS = 5;
@@ -15,6 +16,7 @@ interface PendingCapture {
 }
 
 export function FloatingBubble() {
+  const { t } = useTranslation("common");
   const [pending, setPending] = useState<PendingCapture | null>(null);
   const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS);
   const [saving, setSaving] = useState(false);
@@ -103,7 +105,7 @@ export function FloatingBubble() {
   // Content preview text
   const previewText = pending
     ? pending.content_type === "image"
-      ? "📷 截图 / 图片"
+      ? `📷 ${t("bubble.screenshotImage")}`
       : pending.preview.length > 30
         ? pending.preview.slice(0, 30) + "..."
         : pending.preview
@@ -178,10 +180,10 @@ export function FloatingBubble() {
             {/* Content preview */}
             <div className="flex flex-col min-w-0 max-w-[200px]">
               <span className="text-[11px] text-gray-400 dark:text-slate-500 leading-none mb-0.5">
-                {pending.source_app} · 点击保存
+                {pending.source_app} · {t("bubble.clickToSave")}
               </span>
               <span className="text-[13px] font-medium text-gray-800 dark:text-gray-200 leading-snug truncate">
-                {saving ? "保存中..." : previewText}
+                {saving ? t("bubble.saving") : previewText}
               </span>
             </div>
 

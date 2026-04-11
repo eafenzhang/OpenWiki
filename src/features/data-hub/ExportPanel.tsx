@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useDataHubStore } from "../../stores/dataHubStore";
 import { exportAll, openExportDir } from "../../services/dataHubService";
 
@@ -7,6 +8,7 @@ interface ExportPanelProps {
 }
 
 export function ExportPanel({ onClose }: ExportPanelProps) {
+  const { t } = useTranslation("dataHub");
   const exportDir = useDataHubStore((s) => s.exportDir);
   const loadExportDir = useDataHubStore((s) => s.loadExportDir);
   const [isExporting, setIsExporting] = useState(false);
@@ -51,7 +53,7 @@ export function ExportPanel({ onClose }: ExportPanelProps) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/30 dark:border-white/[0.06]">
           <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
             <span>📤</span>
-            导出设置
+            {t("export.title")}
           </h3>
           <button
             onClick={onClose}
@@ -68,13 +70,13 @@ export function ExportPanel({ onClose }: ExportPanelProps) {
           {/* Export directory */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              导出目录
+              {t("export.exportDir")}
             </label>
             <div
               className="px-3 py-2 text-xs text-gray-500 dark:text-slate-400 bg-white/40 dark:bg-white/[0.04] rounded-xl
                          border border-white/50 dark:border-white/[0.06] font-mono break-all"
             >
-              {exportDir || "未设置"}
+              {exportDir || t("export.notSet")}
             </div>
           </div>
 
@@ -93,12 +95,12 @@ export function ExportPanel({ onClose }: ExportPanelProps) {
             {isExporting ? (
               <>
                 <span className="animate-spin">⏳</span>
-                <span>导出中...</span>
+                <span>{t("export.exporting")}</span>
               </>
             ) : (
               <>
                 <span>📦</span>
-                <span>导出全部</span>
+                <span>{t("export.exportAll")}</span>
               </>
             )}
           </button>
@@ -107,7 +109,7 @@ export function ExportPanel({ onClose }: ExportPanelProps) {
           {exportResult !== null && (
             <div className="px-3 py-2 rounded-xl bg-green-500/10 dark:bg-green-500/15 border border-green-300/40 dark:border-green-500/20">
               <p className="text-xs text-green-700 dark:text-green-400 text-center">
-                已导出 {exportResult} 个文件
+                {t("export.exportedFiles", { count: exportResult })}
               </p>
             </div>
           )}
@@ -122,7 +124,7 @@ export function ExportPanel({ onClose }: ExportPanelProps) {
                        transition-all duration-150"
           >
             <span>📁</span>
-            <span>在 Finder 中打开</span>
+            <span>{t("export.openInFinder")}</span>
           </button>
         </div>
       </div>

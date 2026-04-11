@@ -15,7 +15,7 @@ pub async fn call_gemini_api(
     let http_client = Client::builder()
         .timeout(Duration::from_secs(180))
         .build()
-        .map_err(|e| format!("HTTP client 创建失败: {}", e))?;
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let request_id = format!("agent-{}", uuid::Uuid::new_v4());
 
@@ -55,16 +55,16 @@ pub async fn call_gemini_api(
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("Gemini API 请求失败: {}", e))?;
+        .map_err(|e| format!("Gemini API request failed: {}", e))?;
 
     let status = resp.status();
     let text = resp
         .text()
         .await
-        .map_err(|e| format!("读取 Gemini 响应失败: {}", e))?;
+        .map_err(|e| format!("Failed to read Gemini response: {}", e))?;
 
     if !status.is_success() {
-        return Err(format!("Gemini API 错误 ({}): {}", status, text));
+        return Err(format!("Gemini API error ({}): {}", status, text));
     }
 
     let mut result = String::new();
@@ -106,9 +106,9 @@ pub async fn call_gemini_api(
     }
 
     if result.is_empty() {
-        Err("Gemini API 返回空响应".to_string())
+        Err("Gemini API returned empty response".to_string())
     } else {
-        log::info!("Gemini API 调用成功，响应长度: {}", result.len());
+        log::info!("Gemini API call successful, response length: {}", result.len());
         Ok(result)
     }
 }

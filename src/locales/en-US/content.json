@@ -1,0 +1,73 @@
+{
+  "title": "Content",
+  "filter": {
+    "all": "All",
+    "text": "Text",
+    "image": "Image",
+    "url": "Link"
+  },
+  "card": {
+    "summary": "Summary",
+    "tags": "Tags",
+    "source": "From",
+    "compileToWiki": "Add to Wiki",
+    "compiledToWiki": "In Wiki",
+    "readFailed": "[Read Failed]",
+    "noContent": "No content",
+    "analyzing": "Analyzing...",
+    "regenerateSummary": "Regenerate Summary",
+    "delete": "Delete",
+    "deleteConfirm": "Are you sure you want to delete this item?",
+    "userNote": "Note",
+    "justNow": "Just now",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago",
+    "ocrRecognized": "Recognized {{count}} chars",
+    "ocrRunning": "Recognizing text...",
+    "fetching": "Fetching",
+    "fetchFailed": "Fetch failed",
+    "retrying": "Retrying...",
+    "retry": "Retry",
+    "openLink": "Open link",
+    "copied": "Copied",
+    "copy": "Copy",
+    "addToWiki": "Add to Wiki",
+    "compiling": "Compiling...",
+    "deleteConfirmBtn": "Confirm?",
+    "linkedKnowledge": "Linked knowledge",
+    "imageContent": "Image content",
+    "contentDetail": "Content detail",
+    "originalArticle": "Original",
+    "aiSummary": "AI Summary",
+    "ocrText": "OCR Text",
+    "noOcrText": "No recognized text",
+    "aiAnalyzing": "AI analyzing..."
+  },
+  "empty": "No content captured yet",
+  "emptyTitle": "No content saved yet",
+  "emptyHint": "Copy text, take screenshots, or save links — content will appear here automatically",
+  "captureOn": "Content capture enabled",
+  "captureOff": "Content capture disabled",
+  "dateRange": {
+    "all": "All",
+    "today": "Today",
+    "week": "Past week",
+    "halfMonth": "Past 2 weeks"
+  },
+  "export": {
+    "confirm": "Confirm export?",
+    "exporting": "Exporting...",
+    "done": "Exported",
+    "button": "Export"
+  },
+  "capture": {
+    "active": "Capturing",
+    "paused": "Paused"
+  },
+  "emptyFilter": "No {{type}} content found",
+  "searchPlaceholder": "Search content...",
+  "imagePreview": {
+    "hint": "Scroll to zoom · Drag to pan · R to reset · Esc to close"
+  }
+}

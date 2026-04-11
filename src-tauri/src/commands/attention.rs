@@ -43,7 +43,7 @@ pub fn get_attention_insights(state: State<'_, AppState>) -> Result<RadarStatus,
     // 2. Check if we have enough content (at least 5 items in the last 15 days)
     let content_check = repo
         .get_recent_content_for_analysis(15, 5)
-        .map_err(|e| format!("检查内容失败: {}", e))?;
+        .map_err(|e| format!("Failed to check content: {}", e))?;
 
     if content_check.len() < 5 {
         return Ok(RadarStatus {
@@ -56,7 +56,7 @@ pub fn get_attention_insights(state: State<'_, AppState>) -> Result<RadarStatus,
     // 3. Get current insight
     let insight = repo
         .get_current_insight()
-        .map_err(|e| format!("获取洞察失败: {}", e))?;
+        .map_err(|e| format!("Failed to get insight: {}", e))?;
 
     match insight {
         None => Ok(RadarStatus {
@@ -78,7 +78,7 @@ pub fn get_attention_insights(state: State<'_, AppState>) -> Result<RadarStatus,
                         insight.id,
                         "error",
                         None,
-                        Some("分析超时，请重试"),
+                        Some("Analysis timed out, please retry"),
                     );
                     return Ok(RadarStatus {
                         status: "error".to_string(),
@@ -106,7 +106,7 @@ pub fn get_attention_insights(state: State<'_, AppState>) -> Result<RadarStatus,
             // Check if new content has arrived since the last analysis
             let has_new = repo
                 .has_new_content_since(&insight.analyzed_at)
-                .map_err(|e| format!("检查新内容失败: {}", e))?;
+                .map_err(|e| format!("Failed to check for new content: {}", e))?;
 
             // Check if enough time has passed since last analysis (default: 3 days)
             let interval_days: i64 = repo
@@ -153,7 +153,7 @@ pub async fn trigger_attention_analysis(
     // 1. Check if already analyzing
     let current = repo
         .get_current_insight()
-        .map_err(|e| format!("检查状态失败: {}", e))?;
+        .map_err(|e| format!("Failed to check status: {}", e))?;
 
     if let Some(ref insight) = current {
         if insight.status == "analyzing" {
@@ -164,7 +164,7 @@ pub async fn trigger_attention_analysis(
     // 2. Read AI settings
     let provider_str = repo
         .get_setting("ai_provider")
-        .map_err(|e| format!("读取 AI 提供商失败: {}", e))?
+        .map_err(|e| format!("Failed to read AI provider: {}", e))?
         .unwrap_or_else(|| "anthropic".to_string());
 
     let api_key = repo
@@ -176,21 +176,21 @@ pub async fn trigger_attention_analysis(
 
     // Allow OpenAI/Google providers to proceed without an API key if OAuth is available
     if api_key.is_empty() && provider_str != "openai" && provider_str != "google" {
-        return Err("请先在设置中配置 AI API Key".to_string());
+        return Err("Please configure an AI API Key in settings first".to_string());
     }
 
     let model = repo
         .get_setting("ai_model")
-        .map_err(|e| format!("读取 AI 模型失败: {}", e))?
+        .map_err(|e| format!("Failed to read AI model: {}", e))?
         .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
 
     // 3. Get content for analysis (15 days, max 100)
     let items = repo
         .get_recent_content_for_analysis(15, 100)
-        .map_err(|e| format!("获取内容失败: {}", e))?;
+        .map_err(|e| format!("Failed to get content: {}", e))?;
 
     if items.is_empty() {
-        return Err("没有足够的内容进行分析".to_string());
+        return Err("Not enough content for analysis".to_string());
     }
 
     let item_count = items.len();
@@ -211,7 +211,7 @@ pub async fn trigger_attention_analysis(
             item_count as i32,
             &model,
         )
-        .map_err(|e| format!("创建分析记录失败: {}", e))?;
+        .map_err(|e| format!("Failed to create analysis record: {}", e))?;
 
     // 5. Build prompt — all providers use v3 RadarReport format
     let stats = Repository::get_content_stats(&items);
@@ -229,13 +229,13 @@ pub async fn trigger_attention_analysis(
                 &system_prompt,
                 &user_message,
                 0.7,
-                true, // 深度洞察报告
+                true, // deep insight report
             )
             .await
             {
                 match result {
                     Ok(raw_response) => {
-                        log::info!("Codex OAuth 雷达分析成功");
+                        log::info!("Codex OAuth insight analysis succeeded");
                         let _ = app.emit("attention-analysis-progress", "generating");
                         match attention_analyzer::validate_radar_report(&raw_response) {
                             Ok(report) => {
@@ -247,24 +247,24 @@ pub async fn trigger_attention_analysis(
                                     Some(&json_str),
                                     None,
                                 ) {
-                                    log::error!("保存洞察报告失败: {}", e);
+                                    log::error!("Failed to save insight report: {}", e);
                                     let _ = repo.update_insight_status(
                                         insight_id,
                                         "error",
                                         None,
-                                        Some(&format!("保存失败: {}", e)),
+                                        Some(&format!("Failed to save: {}", e)),
                                     );
                                     let _ = app.emit("attention-analysis-complete", "error");
                                     return;
                                 }
                                 log::info!(
-                                    "洞察报告生成完成（Codex OAuth），共分析 {} 条内容",
+                                    "Insight report generated (Codex OAuth), analyzed {} items",
                                     item_count
                                 );
                                 let _ = app.emit("attention-analysis-complete", "complete");
                             }
                             Err(e) => {
-                                log::error!("洞察报告验证失败: {}", e);
+                                log::error!("Insight report validation failed: {}", e);
                                 let _ = repo.update_insight_status(
                                     insight_id, "error", None, Some(&e),
                                 );
@@ -274,7 +274,7 @@ pub async fn trigger_attention_analysis(
                         return;
                     }
                     Err(e) => {
-                        log::warn!("Codex OAuth 失败，回退到 API Key: {}", e);
+                        log::warn!("Codex OAuth failed, falling back to API Key: {}", e);
                         // Fall through to API key path below
                     }
                 }
@@ -288,13 +288,13 @@ pub async fn trigger_attention_analysis(
                 &system_prompt,
                 &user_message,
                 0.7,
-                true, // 深度洞察报告
+                true, // deep insight report
             )
             .await
             {
                 match result {
                     Ok(raw_response) => {
-                        log::info!("Gemini OAuth 雷达分析成功");
+                        log::info!("Gemini OAuth insight analysis succeeded");
                         let _ = app.emit("attention-analysis-progress", "generating");
                         match attention_analyzer::validate_radar_report(&raw_response) {
                             Ok(report) => {
@@ -306,24 +306,24 @@ pub async fn trigger_attention_analysis(
                                     Some(&json_str),
                                     None,
                                 ) {
-                                    log::error!("保存洞察报告失败: {}", e);
+                                    log::error!("Failed to save insight report: {}", e);
                                     let _ = repo.update_insight_status(
                                         insight_id,
                                         "error",
                                         None,
-                                        Some(&format!("保存失败: {}", e)),
+                                        Some(&format!("Failed to save: {}", e)),
                                     );
                                     let _ = app.emit("attention-analysis-complete", "error");
                                     return;
                                 }
                                 log::info!(
-                                    "洞察报告生成完成（Gemini OAuth），共分析 {} 条内容",
+                                    "Insight report generated (Gemini OAuth), analyzed {} items",
                                     item_count
                                 );
                                 let _ = app.emit("attention-analysis-complete", "complete");
                             }
                             Err(e) => {
-                                log::error!("洞察报告验证失败: {}", e);
+                                log::error!("Insight report validation failed: {}", e);
                                 let _ = repo.update_insight_status(
                                     insight_id, "error", None, Some(&e),
                                 );
@@ -333,7 +333,7 @@ pub async fn trigger_attention_analysis(
                         return;
                     }
                     Err(e) => {
-                        log::warn!("Gemini OAuth 雷达分析失败，回退到 API Key: {}", e);
+                        log::warn!("Gemini OAuth insight analysis failed, falling back to API Key: {}", e);
                         // Fall through to API key path below
                     }
                 }
@@ -342,12 +342,12 @@ pub async fn trigger_attention_analysis(
 
         // If we reach here and have no API key, report an error
         if api_key.is_empty() {
-            log::error!("没有可用的 AI 调用方式（无 API Key，也无 OAuth Token）");
+            log::error!("No available AI call method (no API Key, no OAuth Token)");
             let _ = repo.update_insight_status(
                 insight_id,
                 "error",
                 None,
-                Some("请先配置 API Key 或通过 OAuth 登录"),
+                Some("Please configure an API Key or log in via OAuth first"),
             );
             let _ = app.emit("attention-analysis-complete", "error");
             return;
@@ -389,29 +389,29 @@ pub async fn trigger_attention_analysis(
                             Some(&json_str),
                             None,
                         ) {
-                            log::error!("保存洞察报告失败: {}", e);
+                            log::error!("Failed to save insight report: {}", e);
                             let _ = repo.update_insight_status(
                                 insight_id,
                                 "error",
                                 None,
-                                Some(&format!("保存失败: {}", e)),
+                                Some(&format!("Failed to save: {}", e)),
                             );
                             let _ = app.emit("attention-analysis-complete", "error");
                             return;
                         }
 
-                        log::info!("洞察报告生成完成，共分析 {} 条内容", item_count);
+                        log::info!("Insight report generated, analyzed {} items", item_count);
                         let _ = app.emit("attention-analysis-complete", "complete");
                     }
                     Err(e) => {
-                        log::error!("洞察报告验证失败: {}", e);
+                        log::error!("Insight report validation failed: {}", e);
                         let _ = repo.update_insight_status(insight_id, "error", None, Some(&e));
                         let _ = app.emit("attention-analysis-complete", "error");
                     }
                 }
             }
             Err(e) => {
-                log::error!("AI API 调用失败: {}", e);
+                log::error!("AI API call failed: {}", e);
                 let _ = repo.update_insight_status(insight_id, "error", None, Some(&e));
                 let _ = app.emit("attention-analysis-complete", "error");
             }

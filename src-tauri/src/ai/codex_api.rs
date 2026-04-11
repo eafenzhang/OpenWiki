@@ -14,7 +14,7 @@ pub async fn call_codex_api(
     let http_client = Client::builder()
         .timeout(Duration::from_secs(180))
         .build()
-        .map_err(|e| format!("HTTP client 创建失败: {}", e))?;
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let instructions_text = if instructions.is_empty() {
         "You are a helpful assistant."
@@ -48,16 +48,16 @@ pub async fn call_codex_api(
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("Codex API 请求失败: {}", e))?;
+        .map_err(|e| format!("Codex API request failed: {}", e))?;
 
     let status = resp.status();
     let text = resp
         .text()
         .await
-        .map_err(|e| format!("读取 Codex 响应失败: {}", e))?;
+        .map_err(|e| format!("Failed to read Codex response: {}", e))?;
 
     if !status.is_success() {
-        return Err(format!("Codex API 错误 ({}): {}", status, text));
+        return Err(format!("Codex API error ({}): {}", status, text));
     }
 
     // Parse SSE stream — accumulate response.output_text.delta events
@@ -78,9 +78,9 @@ pub async fn call_codex_api(
     }
 
     if result.is_empty() {
-        Err("Codex API 返回空响应".to_string())
+        Err("Codex API returned empty response".to_string())
     } else {
-        log::info!("Codex API 调用成功，响应长度: {}", result.len());
+        log::info!("Codex API call successful, response length: {}", result.len());
         Ok(result)
     }
 }

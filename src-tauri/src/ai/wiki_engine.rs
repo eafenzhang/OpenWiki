@@ -123,7 +123,7 @@ async fn call_ai(
         .unwrap_or_default();
 
     if api_key.is_empty() {
-        return Err("未配置 AI API Key".to_string());
+        return Err("AI API Key not configured".to_string());
     }
 
     let model = repo
@@ -160,7 +160,7 @@ fn parse_ai_json(raw: &str) -> Result<serde_json::Value, String> {
     } else {
         trimmed
     };
-    serde_json::from_str(cleaned).map_err(|e| format!("JSON 解析失败: {} — 原文: {}", e, &cleaned[..cleaned.len().min(200)]))
+    serde_json::from_str(cleaned).map_err(|e| format!("JSON parse failed: {} — raw: {}", e, &cleaned[..cleaned.len().min(200)]))
 }
 
 /// Assess whether a content item has knowledge value.
@@ -169,7 +169,8 @@ pub async fn assess_content(
     db: Arc<Database>,
     content: &CapturedContent,
 ) -> Result<(bool, f64, String), String> {
-    let system = wiki_prompts::assessment_system_prompt();
+    let locale = crate::locale::resolve_locale(&db);
+    let system = wiki_prompts::assessment_system_prompt(&locale);
     let user = wiki_prompts::assessment_user_message(
         content.content_type.as_str(),
         content.clean_content.as_deref().or(content.raw_text.as_deref()).unwrap_or(""),
@@ -177,6 +178,7 @@ pub async fn assess_content(
         content.user_note.as_deref().unwrap_or(""),
         content.source_url.as_deref().unwrap_or(""),
         &content.source_app,
+        &locale,
     );
 
     let raw = call_ai(db, &system, &user, 256).await?;
@@ -213,17 +215,19 @@ pub async fn compile_content(
     let user_note = content.user_note.as_deref().unwrap_or("");
 
     // --- Stage 1: Discovery ---
+    let locale = crate::locale::resolve_locale(&db);
     let existing_pages = repo
         .get_wiki_page_summaries()
-        .map_err(|e| format!("获取页面索引失败: {}", e))?;
+        .map_err(|e| format!("Failed to get page index: {}", e))?;
 
-    let discover_system = wiki_prompts::compile_discover_system_prompt();
+    let discover_system = wiki_prompts::compile_discover_system_prompt(&locale);
     let discover_user = wiki_prompts::compile_discover_user_message(
         content_text,
         content_summary,
         content_tags,
         user_note,
         &existing_pages,
+        &locale,
     );
 
     let discover_raw = call_ai(db.clone(), &discover_system, &discover_user, 1024).await?;
@@ -246,7 +250,7 @@ pub async fn compile_content(
     }
 
     let mut touched_ids = Vec::new();
-    let execute_system = wiki_prompts::compile_execute_system_prompt();
+    let execute_system = wiki_prompts::compile_execute_system_prompt(&locale);
     let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
 
     // --- Stage 2: Execute creates ---
@@ -266,6 +270,7 @@ pub async fn compile_content(
             user_note,
             title,
             page_type,
+            &locale,
         );
 
         let execute_raw = call_ai(db.clone(), &execute_system, &execute_user, 2048).await?;
@@ -313,9 +318,9 @@ pub async fn compile_content(
             last_compiled_at: Some(now.clone()),
             source_message_id: None,
         };
-        repo.save_wiki_page(&page).map_err(|e| format!("保存页面失败: {}", e))?;
+        repo.save_wiki_page(&page).map_err(|e| format!("Failed to save page: {}", e))?;
         repo.add_page_source(&page_id, &content.id, &current_hash)
-            .map_err(|e| format!("保存来源关系失败: {}", e))?;
+            .map_err(|e| format!("Failed to save source relation: {}", e))?;
 
         // Process edges
         if let Some(edges) = page_json.get("edges").and_then(|v| v.as_array()) {
@@ -363,6 +368,7 @@ pub async fn compile_content(
             &existing_page.title,
             active_count,
             stale_count,
+            &locale,
         );
 
         let execute_raw = call_ai(db.clone(), &execute_system, &execute_user, 2048).await?;
@@ -398,9 +404,9 @@ pub async fn compile_content(
             source_message_id: None,
         };
         repo.update_wiki_page(&updated_page)
-            .map_err(|e| format!("更新页面失败: {}", e))?;
+            .map_err(|e| format!("Failed to update page: {}", e))?;
         repo.add_page_source(page_id, &content.id, &current_hash)
-            .map_err(|e| format!("保存来源关系失败: {}", e))?;
+            .map_err(|e| format!("Failed to save source relation: {}", e))?;
 
         // Process new edges
         if let Some(edges) = page_json.get("edges").and_then(|v| v.as_array()) {
@@ -530,7 +536,7 @@ pub async fn manual_compile(db: Arc<Database>, content_id: &str) -> Result<Vec<S
         .acquire_compile_lock(content_id, &current_hash)
         .map_err(|e| e.to_string())?
     {
-        return Err("编译正在进行中，请稍后再试".to_string());
+        return Err("Compilation in progress, please try again later".to_string());
     }
 
     match compile_content(db.clone(), &content).await {
@@ -589,8 +595,8 @@ pub fn on_content_deleted(
                 let _ = repo.save_lint_result(
                     "orphan",
                     "warning",
-                    &format!("「{}」的部分来源已删除", page.title),
-                    &format!("页面置信度下降到 {:.0}%，建议重新编译", confidence * 100.0),
+                    &format!("Some sources for \"{}\" have been deleted", page.title),
+                    &format!("Page confidence dropped to {:.0}%, recompile recommended", confidence * 100.0),
                     &format!("[\"{}\"]", page_id),
                 );
             }
@@ -601,8 +607,8 @@ pub fn on_content_deleted(
                 let _ = repo.save_lint_result(
                     "orphan",
                     "critical",
-                    &format!("「{}」的所有来源已删除", page.title),
-                    "知识可能失效，请决定保留或删除此页面",
+                    &format!("All sources for \"{}\" have been deleted", page.title),
+                    "Knowledge may be outdated. Consider keeping or deleting this page.",
                     &format!("[\"{}\"]", page_id),
                 );
             }

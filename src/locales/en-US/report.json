@@ -1,0 +1,89 @@
+{
+  "title": "Weekly Report",
+  "generate": "Generate",
+  "regenerate": "Regenerate",
+  "generating": "Generating",
+  "noReport": "No report yet",
+  "noReportHint": "Capture some content first, then generate a weekly report",
+  "weekOf": "Week of {{start}} - {{end}}",
+  "summary": "Summary",
+  "sections": "Details",
+  "history": "History",
+  "stats": {
+    "totalItems": "This Week",
+    "topics": "Topics",
+    "topSources": "Top Sources",
+    "unit": "items",
+    "thisWeekData": "This Week",
+    "itemsCount": "items",
+    "importantContent": "Top Content"
+  },
+  "feedback": {
+    "helpful": "Helpful",
+    "notHelpful": "Not Helpful",
+    "interested": "Interested",
+    "dismissed": "Got it",
+    "recorded": "Recorded"
+  },
+  "filter": {
+    "all": "All",
+    "text": "Text",
+    "url": "Links",
+    "image": "Images"
+  },
+  "contentPreview": {
+    "relatedContent": "Related Content",
+    "itemsCount": "{{count}}"
+  },
+  "contentType": {
+    "image": "Image",
+    "url": "Link",
+    "text": "Text",
+    "mixed": "Mixed"
+  },
+  "detail": {
+    "aiAdvice": "AI Advice",
+    "feedbackQuestion": "Was this analysis useful?",
+    "agree": "Agree",
+    "disagree": "Disagree",
+    "bookmark": "Bookmark",
+    "relatedContent": "Related Content",
+    "noRelatedContent": "No related content",
+    "viewSource": "View Source"
+  },
+  "empty": {
+    "title": "No weekly report yet",
+    "desc": "AI will automatically analyze your content for the week",
+    "generate": "Generate Now"
+  },
+  "generatingState": {
+    "title": "AI is analyzing...",
+    "desc": "This takes a few seconds"
+  },
+  "error": {
+    "loadFailed": "Failed to load report. Please try again later.",
+    "generateFailed": "Failed to generate report. Please configure AI service first."
+  },
+  "footer": {
+    "itemsCount": "{{count}} items",
+    "analysisCount": "{{count}} analyses"
+  },
+  "noData": "No data",
+  "dayLabels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+  "weekPrefix": "",
+  "linkList": {
+    "empty": "No links this week",
+    "count": "{{count}} links",
+    "unknownLink": "Unknown link"
+  },
+  "textList": {
+    "empty": "No text content this week",
+    "count": "{{count}} texts",
+    "collapse": "Collapse",
+    "expand": "Expand"
+  },
+  "imageList": {
+    "empty": "No images this week",
+    "count": "{{count}} images"
+  }
+}

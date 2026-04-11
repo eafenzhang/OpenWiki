@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { AlertTriangle, Check, Trash2, RotateCcw, RefreshCw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { WikiLintResult } from "../../types/wiki";
 import { getWikiLintResults, triggerWikiLint, wikiLintKeep, wikiLintDelete, wikiLintRecompile } from "../../services/wikiService";
 
@@ -14,6 +15,7 @@ interface WikiLintSectionProps {
 }
 
 export function WikiLintSection({ compact = false }: WikiLintSectionProps) {
+  const { t } = useTranslation("wiki");
   const [results, setResults] = useState<WikiLintResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [acting, setActing] = useState<number | null>(null);
@@ -60,7 +62,7 @@ export function WikiLintSection({ compact = false }: WikiLintSectionProps) {
       <div className="flex items-center justify-between mb-2">
         <h3 className="flex items-center gap-1.5" style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)" }}>
           <AlertTriangle size={14} style={{ color: "#CA8A04" }} />
-          知识库健康
+          {t("lint.healthTitle")}
           {results.length > 0 && (
             <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
               style={{ backgroundColor: "#DC262615", color: "#DC2626" }}>
@@ -72,7 +74,7 @@ export function WikiLintSection({ compact = false }: WikiLintSectionProps) {
           onClick={handleRefresh}
           disabled={loading}
           className="p-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 dark:hover:bg-white/[0.08] transition-all disabled:opacity-40"
-          title="运行健康检查"
+          title={t("lint.runTooltip")}
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
         </button>
@@ -80,7 +82,7 @@ export function WikiLintSection({ compact = false }: WikiLintSectionProps) {
 
       {results.length === 0 ? (
         <p style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
-          {compact ? "" : "知识库状态良好，暂无问题"}
+          {compact ? "" : t("lint.healthy")}
         </p>
       ) : (
         <div className="space-y-2">
@@ -107,7 +109,7 @@ export function WikiLintSection({ compact = false }: WikiLintSectionProps) {
                       onClick={() => handleAction(r.id, "keep")}
                       disabled={isActing}
                       className="p-1 rounded hover:bg-white/50 dark:hover:bg-white/[0.1] text-stone-400 hover:text-green-600 transition-colors"
-                      title="保留"
+                      title={t("lint.keepTooltip")}
                     >
                       <Check size={14} />
                     </button>
@@ -115,7 +117,7 @@ export function WikiLintSection({ compact = false }: WikiLintSectionProps) {
                       onClick={() => handleAction(r.id, "recompile")}
                       disabled={isActing}
                       className="p-1 rounded hover:bg-white/50 dark:hover:bg-white/[0.1] text-stone-400 hover:text-orange-500 transition-colors"
-                      title="重编"
+                      title={t("lint.recompileTooltip")}
                     >
                       <RotateCcw size={14} />
                     </button>
@@ -123,7 +125,7 @@ export function WikiLintSection({ compact = false }: WikiLintSectionProps) {
                       onClick={() => handleAction(r.id, "delete")}
                       disabled={isActing}
                       className="p-1 rounded hover:bg-white/50 dark:hover:bg-white/[0.1] text-stone-400 hover:text-red-500 transition-colors"
-                      title="删除"
+                      title={t("lint.deleteTooltip")}
                     >
                       <Trash2 size={14} />
                     </button>

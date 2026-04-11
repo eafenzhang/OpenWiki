@@ -1,0 +1,73 @@
+{
+  "title": "内容",
+  "filter": {
+    "all": "全部",
+    "text": "文本",
+    "image": "图片",
+    "url": "链接"
+  },
+  "card": {
+    "summary": "摘要",
+    "tags": "标签",
+    "source": "来自",
+    "compileToWiki": "入库知识",
+    "compiledToWiki": "已入库",
+    "readFailed": "[读取失败]",
+    "noContent": "无内容",
+    "analyzing": "分析中...",
+    "regenerateSummary": "重新生成摘要",
+    "delete": "删除",
+    "deleteConfirm": "确定要删除这条内容吗？",
+    "userNote": "备注",
+    "justNow": "刚刚",
+    "minutesAgo": "{{count}} 分钟前",
+    "hoursAgo": "{{count}} 小时前",
+    "daysAgo": "{{count}} 天前",
+    "ocrRecognized": "识别了 {{count}} 字",
+    "ocrRunning": "正在识别文字...",
+    "fetching": "读取中",
+    "fetchFailed": "读取失败",
+    "retrying": "重试中...",
+    "retry": "重试",
+    "openLink": "打开链接",
+    "copied": "已复制",
+    "copy": "复制",
+    "addToWiki": "入知识库",
+    "compiling": "编译中...",
+    "deleteConfirmBtn": "确认?",
+    "linkedKnowledge": "关联知识",
+    "imageContent": "图片内容",
+    "contentDetail": "内容详情",
+    "originalArticle": "原文",
+    "aiSummary": "AI 总结",
+    "ocrText": "识别文字",
+    "noOcrText": "暂无识别文字",
+    "aiAnalyzing": "AI 分析中..."
+  },
+  "empty": "还没有采集任何内容",
+  "emptyTitle": "还没有保存任何内容",
+  "emptyHint": "复制文本或截图后会自动保存到这里",
+  "captureOn": "内容捕获已开启",
+  "captureOff": "内容捕获已关闭",
+  "dateRange": {
+    "all": "全部",
+    "today": "今天",
+    "week": "近一周",
+    "halfMonth": "半个月"
+  },
+  "export": {
+    "confirm": "确认导出？",
+    "exporting": "导出中...",
+    "done": "已导出",
+    "button": "导出"
+  },
+  "capture": {
+    "active": "捕获中",
+    "paused": "已暂停"
+  },
+  "emptyFilter": "暂无{{type}}类型的内容",
+  "searchPlaceholder": "搜索内容...",
+  "imagePreview": {
+    "hint": "滚轮缩放 · 拖拽平移 · R 重置 · Esc 关闭"
+  }
+}

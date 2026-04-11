@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { CapturedContent } from "../../types/content";
 import { deleteContent, retryUrlFetch } from "../../services/storageService";
 import { compileContentToWiki, getContentWikiPages } from "../../services/wikiService";
@@ -19,7 +21,7 @@ interface ContentCardProps {
   isHighlighted?: boolean;
 }
 
-function formatRelativeTime(dateStr: string): string {
+function formatRelativeTime(dateStr: string, t: TFunction): string {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -28,15 +30,16 @@ function formatRelativeTime(dateStr: string): string {
   const diffHour = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHour / 24);
 
-  if (diffSec < 60) return "刚刚";
-  if (diffMin < 60) return `${diffMin} 分钟前`;
-  if (diffHour < 24) return `${diffHour} 小时前`;
-  if (diffDay < 7) return `${diffDay} 天前`;
-  return date.toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
+  if (diffSec < 60) return t("card.justNow");
+  if (diffMin < 60) return t("card.minutesAgo", { count: diffMin });
+  if (diffHour < 24) return t("card.hoursAgo", { count: diffHour });
+  if (diffDay < 7) return t("card.daysAgo", { count: diffDay });
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
   function ContentCard({ content, isHighlighted = false }, ref) {
+  const { t } = useTranslation("content");
   const removeContent = useContentStore((s) => s.removeContent);
   const removeFromDataHub = useDataHubStore((s) => s.removeContent);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -105,14 +108,14 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
   };
 
   const typeConfig = {
-    image: { icon: "🖼️", label: "图片", accent: "bg-amber-500/10 dark:bg-amber-500/20" },
-    url: { icon: "🔗", label: "链接", accent: "bg-orange-500/10 dark:bg-orange-500/20" },
-    text: { icon: "📝", label: "文本", accent: "bg-orange-500/10 dark:bg-orange-500/20" },
-    mixed: { icon: "📎", label: "混合", accent: "bg-gray-500/10 dark:bg-gray-500/20" },
+    image: { icon: "🖼️", label: t("content:filter.image"), accent: "bg-amber-500/10 dark:bg-amber-500/20" },
+    url: { icon: "🔗", label: t("content:filter.url"), accent: "bg-orange-500/10 dark:bg-orange-500/20" },
+    text: { icon: "📝", label: t("content:filter.text"), accent: "bg-orange-500/10 dark:bg-orange-500/20" },
+    mixed: { icon: "📎", label: t("common:contentType.mixed"), accent: "bg-gray-500/10 dark:bg-gray-500/20" },
   };
 
   const { icon: typeIcon } = typeConfig[content.content_type] || typeConfig.text;
-  const timeStr = formatRelativeTime(content.captured_at);
+  const timeStr = formatRelativeTime(content.captured_at, t);
 
   const [retrying, setRetrying] = useState(false);
 
@@ -224,7 +227,7 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
                   ) : null}
                   {(content.raw_text || ocrText) && (
                     <span className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">
-                      识别了 {(ocrText || content.raw_text || "").length} 字
+                      {t("card.ocrRecognized", { count: (ocrText || content.raw_text || "").length })}
                     </span>
                   )}
                 </div>
@@ -238,7 +241,7 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                正在识别文字...
+                {t("card.ocrRunning")}
               </div>
             )}
 
@@ -274,7 +277,7 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
 
             {/* No content fallback */}
             {!imageSrc && !content.raw_text && !isUrlContent && (
-              <p className="text-sm text-gray-400 dark:text-slate-500 italic">无内容</p>
+              <p className="text-sm text-gray-400 dark:text-slate-500 italic">{t("card.noContent")}</p>
             )}
           </div>
 
@@ -289,7 +292,7 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                读取中
+                {t("card.fetching")}
               </span>
             </div>
           )}
@@ -298,7 +301,7 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
           {isUrlContent && isFailedUrl && (
             <div>
               <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-xs text-red-500 dark:text-red-400 font-medium">读取失败</span>
+                <span className="text-xs text-red-500 dark:text-red-400 font-medium">{t("card.fetchFailed")}</span>
                 <button
                   onClick={handleRetry}
                   disabled={retrying}
@@ -309,7 +312,7 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
                   <svg className={`w-3 h-3 ${retrying ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  {retrying ? "重试中..." : "重试"}
+                  {retrying ? t("card.retrying") : t("card.retry")}
                 </button>
               </div>
               <p className="text-sm text-orange-500 dark:text-orange-400 truncate">
@@ -360,7 +363,7 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
                              hover:text-orange-600 dark:hover:text-orange-400
                              hover:bg-orange-500/10 dark:hover:bg-orange-500/15 transition-all"
                 >
-                  打开链接
+                  {t("card.openLink")}
                 </button>
               )}
               {content.raw_text && (
@@ -372,7 +375,7 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
                       : "text-gray-400 dark:text-slate-500 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 dark:hover:bg-orange-500/15"
                     }`}
                 >
-                  {copied ? "已复制" : "复制"}
+                  {copied ? t("card.copied") : t("card.copy")}
                 </button>
               )}
               {(content.raw_text || content.user_note || content.source_url) && (
@@ -387,7 +390,7 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
                       : "text-gray-400 dark:text-slate-500 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 dark:hover:bg-orange-500/15"
                     }`}
                 >
-                  {wikiState === "done" ? "已入库" : wikiState === "compiling" ? "编译中..." : "入知识库"}
+                  {wikiState === "done" ? t("card.compiledToWiki") : wikiState === "compiling" ? t("card.compiling") : t("card.addToWiki")}
                 </button>
               )}
               <button
@@ -401,14 +404,14 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
                     : "text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 dark:hover:bg-red-500/15"
                   }`}
               >
-                {deleteState === "confirm" ? "确认?" : deleteState === "deleting" ? "..." : "删除"}
+                {deleteState === "confirm" ? t("card.deleteConfirmBtn") : deleteState === "deleting" ? "..." : t("card.delete")}
               </button>
             </div>
           </div>
             {/* Wiki linked pages */}
             {linkedWikiPages.length > 0 && (
               <div className="flex items-center gap-1.5 mt-2 pt-2 border-t" style={{ borderColor: "var(--color-border, #E7E5E4)" }}>
-                <span style={{ fontSize: 10, color: "var(--color-text-muted, #A8A29E)" }}>关联知识</span>
+                <span style={{ fontSize: 10, color: "var(--color-text-muted, #A8A29E)" }}>{t("card.linkedKnowledge")}</span>
                 {linkedWikiPages.slice(0, 3).map((wp) => (
                   <button
                     key={wp.id}
@@ -572,11 +575,12 @@ function FormattedText({ text }: { text: string }) {
    ================================================================ */
 
 function AnalyzingChip() {
+  const { t } = useTranslation("content");
   return (
     <div className="flex flex-wrap gap-1.5 mb-2">
       <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full animate-pulse
                         bg-orange-50 dark:bg-orange-500/10 text-orange-400 dark:text-orange-500">
-        AI 分析中...
+        {t("card.aiAnalyzing")}
       </span>
     </div>
   );
@@ -622,6 +626,7 @@ export function FullTextOverlay({
   imageSrc?: string | null;
   ocrText?: string | null;
 }) {
+  const { t } = useTranslation("content");
   const isImage = content.content_type === "image";
   const isUrl = content.content_type === "url";
   // For images, prefer ocrText over content.raw_text
@@ -676,7 +681,7 @@ export function FullTextOverlay({
             </div>
             <div className="min-w-0">
               <div className="text-[13px] font-semibold text-gray-800 dark:text-gray-100 truncate">
-                {content.raw_text?.split("\n")[0]?.slice(0, 60) || (isImage ? "图片内容" : "内容详情")}
+                {content.raw_text?.split("\n")[0]?.slice(0, 60) || (isImage ? t("card.imageContent") : t("card.contentDetail"))}
               </div>
               <div className="text-[11px] text-gray-400 dark:text-slate-500 truncate mt-0.5">
                 {content.source_url || `${content.source_app} · ${content.content_type}`}
@@ -695,7 +700,7 @@ export function FullTextOverlay({
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                 </svg>
-                原文
+                {t("card.originalArticle")}
               </button>
             )}
             <button
@@ -711,14 +716,14 @@ export function FullTextOverlay({
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
-                  已复制
+                  {t("card.copied")}
                 </>
               ) : (
                 <>
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
                   </svg>
-                  复制
+                  {t("card.copy")}
                 </>
               )}
             </button>
@@ -759,7 +764,7 @@ export function FullTextOverlay({
                 }}>
                   <div className="flex items-center gap-1.5 mb-2">
                     <span className="w-1 h-1 rounded-full" style={{ backgroundColor: "#F97316" }} />
-                    <span style={{ fontSize: 11, fontWeight: 600, color: "#F97316" }}>AI 总结</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#F97316" }}>{t("card.aiSummary")}</span>
                   </div>
                   <p style={{ fontSize: 13, lineHeight: 1.8, color: "var(--color-text-secondary, #57534E)" }}>
                     {content.digest}
@@ -771,7 +776,7 @@ export function FullTextOverlay({
                 <article className="selection:bg-orange-500/20 dark:selection:bg-orange-500/30 overflow-hidden">
                   {isImage && (
                     <div className="flex items-center gap-1.5 mb-3">
-                      <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium px-2 py-0.5 rounded-md bg-amber-500/10">识别文字</span>
+                      <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium px-2 py-0.5 rounded-md bg-amber-500/10">{t("card.ocrText")}</span>
                     </div>
                   )}
                   {hasCleanContent ? (
@@ -786,7 +791,7 @@ export function FullTextOverlay({
               {/* No text fallback for images */}
               {isImage && !displayText && (
                 <p className="text-sm text-gray-400 dark:text-slate-500 italic text-center">
-                  暂无识别文字
+                  {t("card.noOcrText")}
                 </p>
               )}
             </div>

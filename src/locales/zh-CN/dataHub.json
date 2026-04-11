@@ -1,0 +1,55 @@
+{
+  "title": "数据中心",
+  "timeline": "时间线",
+  "sidebar": {
+    "itemsAndDays": "{{items}} 条 · {{days}} 天",
+    "noData": "暂无数据",
+    "exportSettings": "导出设置",
+    "openFolder": "打开文件夹"
+  },
+  "dayDetail": {
+    "items": "条内容",
+    "itemsCount": "{{count}} 条内容",
+    "noContent": "当天无内容",
+    "noContentForDay": "这一天没有记录的内容",
+    "exportDay": "导出此日",
+    "contentType": {
+      "text": "文本",
+      "url": "链接",
+      "image": "图片",
+      "mixed": "混合"
+    }
+  },
+  "welcome": {
+    "title": "选择左侧日期查看内容",
+    "desc": "浏览和管理你的所有历史数据",
+    "totalItems": "总条目",
+    "activeDays": "活跃天数"
+  },
+  "export": {
+    "title": "导出设置",
+    "markdown": "导出为 Markdown",
+    "json": "导出为 JSON",
+    "exporting": "导出中...",
+    "exportAll": "导出全部",
+    "success": "导出成功",
+    "failed": "导出失败",
+    "exportDir": "导出目录",
+    "notSet": "未设置",
+    "exportedFiles": "已导出 {{count}} 个文件",
+    "openInFinder": "在 Finder 中打开"
+  },
+  "weekday": {
+    "sun": "日",
+    "mon": "一",
+    "tue": "二",
+    "wed": "三",
+    "thu": "四",
+    "fri": "五",
+    "sat": "六"
+  },
+  "dateFormat": {
+    "dayWithWeekday": "{{day}}日 周{{weekday}}",
+    "fullDate": "{{month}}月{{day}}日 星期{{weekday}}"
+  }
+}

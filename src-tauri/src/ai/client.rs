@@ -181,13 +181,13 @@ impl AiClient {
             .json(&request_body)
             .send()
             .await
-            .map_err(|e| format!("Anthropic API 请求失败: {}", e))?;
+            .map_err(|e| format!("Anthropic API request failed: {}", e))?;
 
         let status = response.status();
         let body = response
             .text()
             .await
-            .map_err(|e| format!("读取 Anthropic 响应失败: {}", e))?;
+            .map_err(|e| format!("Failed to read Anthropic response: {}", e))?;
 
         if !status.is_success() {
             let error_msg = if let Ok(err) = serde_json::from_str::<AnthropicError>(&body) {
@@ -196,11 +196,11 @@ impl AiClient {
                 body.clone()
             };
             log::error!("Anthropic API error ({}): {}", status, error_msg);
-            return Err(format!("Anthropic API 错误 ({}): {}", status, error_msg));
+            return Err(format!("Anthropic API error ({}): {}", status, error_msg));
         }
 
         let parsed: AnthropicResponse = serde_json::from_str(&body)
-            .map_err(|e| format!("解析 Anthropic 响应失败: {} body: {}", e, body))?;
+            .map_err(|e| format!("Failed to parse Anthropic response: {} body: {}", e, body))?;
 
         let text = parsed
             .content
@@ -212,7 +212,7 @@ impl AiClient {
             .usage
             .map(|u| (u.input_tokens + u.output_tokens) as i32);
 
-        log::info!("Anthropic API 响应成功, tokens: {:?}", tokens_used);
+        log::info!("Anthropic API response successful, tokens: {:?}", tokens_used);
 
         Ok(AiResponse { text, tokens_used })
     }
@@ -249,13 +249,13 @@ impl AiClient {
             .json(&request_body)
             .send()
             .await
-            .map_err(|e| format!("OpenAI API 请求失败: {}", e))?;
+            .map_err(|e| format!("OpenAI API request failed: {}", e))?;
 
         let status = response.status();
         let body = response
             .text()
             .await
-            .map_err(|e| format!("读取 OpenAI 响应失败: {}", e))?;
+            .map_err(|e| format!("Failed to read OpenAI response: {}", e))?;
 
         if !status.is_success() {
             let error_msg = if let Ok(err) = serde_json::from_str::<OpenAiError>(&body) {
@@ -264,11 +264,11 @@ impl AiClient {
                 body.clone()
             };
             log::error!("OpenAI API error ({}): {}", status, error_msg);
-            return Err(format!("OpenAI API 错误 ({}): {}", status, error_msg));
+            return Err(format!("OpenAI API error ({}): {}", status, error_msg));
         }
 
         let parsed: OpenAiResponse = serde_json::from_str(&body)
-            .map_err(|e| format!("解析 OpenAI 响应失败: {} body: {}", e, body))?;
+            .map_err(|e| format!("Failed to parse OpenAI response: {} body: {}", e, body))?;
 
         let text = parsed
             .choices
@@ -278,7 +278,7 @@ impl AiClient {
 
         let tokens_used = parsed.usage.map(|u| u.total_tokens as i32);
 
-        log::info!("OpenAI API 响应成功, tokens: {:?}", tokens_used);
+        log::info!("OpenAI API response successful, tokens: {:?}", tokens_used);
 
         Ok(AiResponse { text, tokens_used })
     }
@@ -317,13 +317,13 @@ impl AiClient {
             .json(&request_body)
             .send()
             .await
-            .map_err(|e| format!("OpenRouter API 请求失败: {}", e))?;
+            .map_err(|e| format!("OpenRouter API request failed: {}", e))?;
 
         let status = response.status();
         let body = response
             .text()
             .await
-            .map_err(|e| format!("读取 OpenRouter 响应失败: {}", e))?;
+            .map_err(|e| format!("Failed to read OpenRouter response: {}", e))?;
 
         if !status.is_success() {
             let error_msg = if let Ok(err) = serde_json::from_str::<OpenAiError>(&body) {
@@ -332,11 +332,11 @@ impl AiClient {
                 body.clone()
             };
             log::error!("OpenRouter API error ({}): {}", status, error_msg);
-            return Err(format!("OpenRouter API 错误 ({}): {}", status, error_msg));
+            return Err(format!("OpenRouter API error ({}): {}", status, error_msg));
         }
 
         let parsed: OpenAiResponse = serde_json::from_str(&body)
-            .map_err(|e| format!("解析 OpenRouter 响应失败: {} body: {}", e, body))?;
+            .map_err(|e| format!("Failed to parse OpenRouter response: {} body: {}", e, body))?;
 
         let text = parsed
             .choices
@@ -346,7 +346,7 @@ impl AiClient {
 
         let tokens_used = parsed.usage.map(|u| u.total_tokens as i32);
 
-        log::info!("OpenRouter API 响应成功, tokens: {:?}", tokens_used);
+        log::info!("OpenRouter API response successful, tokens: {:?}", tokens_used);
 
         Ok(AiResponse { text, tokens_used })
     }

@@ -1,20 +1,25 @@
+import { useTranslation } from "react-i18next";
 import type { CapturedContent } from "../../types/content";
 
 interface DigestCardProps {
   content: CapturedContent;
 }
 
-function timeAgo(dateStr: string): string {
-  const now = new Date();
-  const then = new Date(dateStr);
-  const diffMs = now.getTime() - then.getTime();
-  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (days === 0) return "今天";
-  if (days === 1) return "昨天";
-  if (days < 30) return `${days} 天前`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months} 个月前`;
-  return `${Math.floor(months / 12)} 年前`;
+function useTimeAgo() {
+  const { t } = useTranslation("digest");
+
+  return (dateStr: string): string => {
+    const now = new Date();
+    const then = new Date(dateStr);
+    const diffMs = now.getTime() - then.getTime();
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (days === 0) return t("timeAgo.today");
+    if (days === 1) return t("timeAgo.yesterday");
+    if (days < 30) return t("timeAgo.daysAgo", { count: days });
+    const months = Math.floor(days / 30);
+    if (months < 12) return t("timeAgo.monthsAgo", { count: months });
+    return t("timeAgo.yearsAgo", { count: Math.floor(months / 12) });
+  };
 }
 
 function typeIcon(type: string): string {
@@ -26,7 +31,10 @@ function typeIcon(type: string): string {
 }
 
 export function DigestCard({ content }: DigestCardProps) {
-  const fullText = content.raw_text || content.source_url || (content.image_path ? "[图片]" : "无内容");
+  const { t } = useTranslation("digest");
+  const timeAgo = useTimeAgo();
+
+  const fullText = content.raw_text || content.source_url || (content.image_path ? t("card.imagePlaceholder") : t("card.noContentText"));
 
   return (
     <div className="glass rounded-xl overflow-hidden flex flex-col h-full">
@@ -39,7 +47,7 @@ export function DigestCard({ content }: DigestCardProps) {
           </span>
         </div>
         <span className="text-[11px] text-amber-500 dark:text-amber-400 italic">
-          {timeAgo(content.captured_at)}保存
+          {timeAgo(content.captured_at)}{t("card.saved")}
         </span>
       </div>
 

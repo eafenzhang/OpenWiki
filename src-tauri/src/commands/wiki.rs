@@ -253,9 +253,10 @@ pub async fn wiki_ask(
         })
         .collect();
 
-    let answer_system = crate::ai::wiki_prompts::query_answer_system_prompt();
+    let locale = crate::locale::resolve_locale(&db);
+    let answer_system = crate::ai::wiki_prompts::query_answer_system_prompt(&locale);
     let answer_user = crate::ai::wiki_prompts::query_answer_user_message(
-        &question, &recent_context, &relevant_pages, &page_index,
+        &question, &recent_context, &relevant_pages, &page_index, &locale,
     );
 
     let raw = wiki_engine::call_ai_pub(db.clone(), &answer_system, &answer_user, 2048).await?;
@@ -363,7 +364,7 @@ fn build_conversation_context(messages: &[WikiChatMessage], max_turns: usize) ->
     let mut parts = Vec::new();
     let mut budget = 2000i64;
     for msg in recent.iter().rev() {
-        let role_label = if msg.role == "user" { "用户" } else { "助手" };
+        let role_label = if msg.role == "user" { "User" } else { "Assistant" };
         let content: String = msg.content.chars().take(budget.max(0) as usize).collect();
         budget -= content.len() as i64;
         parts.push(format!("{}: {}", role_label, content));
@@ -378,8 +379,9 @@ async fn rewrite_query(
     question: &str,
     context: &str,
 ) -> Result<String, String> {
-    let system = crate::ai::wiki_prompts::query_rewrite_system_prompt();
-    let user = crate::ai::wiki_prompts::query_rewrite_user_message(question, context);
+    let locale = crate::locale::resolve_locale(&db);
+    let system = crate::ai::wiki_prompts::query_rewrite_system_prompt(&locale);
+    let user = crate::ai::wiki_prompts::query_rewrite_user_message(question, context, &locale);
     let raw = wiki_engine::call_ai_pub(db, &system, &user, 256).await?;
     Ok(raw.trim().to_string())
 }
@@ -391,8 +393,9 @@ async fn retrieve_relevant_pages(
     context: &str,
     page_index: &[(String, String, String)],
 ) -> Result<Vec<String>, String> {
-    let system = crate::ai::wiki_prompts::query_retrieve_system_prompt();
-    let user = crate::ai::wiki_prompts::query_retrieve_user_message(query, context, page_index);
+    let locale = crate::locale::resolve_locale(&db);
+    let system = crate::ai::wiki_prompts::query_retrieve_system_prompt(&locale);
+    let user = crate::ai::wiki_prompts::query_retrieve_user_message(query, context, page_index, &locale);
     let raw = wiki_engine::call_ai_pub(db, &system, &user, 512).await?;
     let json = wiki_engine::parse_ai_json_pub(&raw)?;
     let ids: Vec<String> = json.get("page_ids")
@@ -444,12 +447,12 @@ pub async fn save_message_as_page(
     let messages = repo.get_chat_messages(&session_id).map_err(|e| e.to_string())?;
 
     let asst_msg = messages.iter().find(|m| m.id == message_id && m.role == "assistant")
-        .ok_or_else(|| "消息不存在".to_string())?;
+        .ok_or_else(|| "Message not found".to_string())?;
 
     // Anti-contamination: only allow saving if source_mode is not ai_only
     let source_mode = asst_msg.source_mode.as_deref().unwrap_or("ai_only");
     if source_mode == "ai_only" {
-        return Err("纯 AI 回答不能保存为知识页面（无知识库来源支撑）".to_string());
+        return Err("AI-only answers cannot be saved as wiki pages (no knowledge base sources)".to_string());
     }
 
     // Dedup: check if this message was already saved (DB-enforced via UNIQUE index)
@@ -472,7 +475,7 @@ pub async fn save_message_as_page(
         title,
         slug: format!("qa-{}", &page_id[..8]),
         page_type: "qa".to_string(),
-        body_markdown: format!("## 问题\n\n{}\n\n## 回答\n\n{}", user_question, asst_msg.content),
+        body_markdown: format!("## Question\n\n{}\n\n## Answer\n\n{}", user_question, asst_msg.content),
         summary: Some(format!("Q&A: {}", &user_question.chars().take(30).collect::<String>())),
         tags: None,
         status: "active".to_string(),
@@ -562,8 +565,8 @@ pub async fn trigger_wiki_lint(
         let _ = repo.save_lint_result(
             "stale",
             "warning",
-            &format!("「{}」有过时来源", page.title),
-            "部分来源已更新或删除，建议重新编译",
+            &format!("\"{}\" has stale sources", page.title),
+            "Some sources have been updated or deleted, recompilation recommended",
             &format!("[\"{}\"]", page.id),
         );
     }
@@ -576,8 +579,8 @@ pub async fn trigger_wiki_lint(
         let _ = repo.save_lint_result(
             "orphan",
             "critical",
-            &format!("「{}」已失效", page.title),
-            "所有来源已删除，请决定保留或删除",
+            &format!("\"{}\" is invalid", page.title),
+            "All sources have been deleted, please decide to keep or remove",
             &format!("[\"{}\"]", page.id),
         );
     }
@@ -657,7 +660,7 @@ pub async fn wiki_lint_recompile(
                 .count_active_sources(pid)
                 .map_err(|e| e.to_string())?;
             if active == 0 {
-                return Err("没有活跃来源，无法重编".to_string());
+                return Err("No active sources, cannot recompile".to_string());
             }
             // Get active source content IDs and re-compile each
             let sources = repo
