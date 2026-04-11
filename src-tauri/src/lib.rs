@@ -61,6 +61,17 @@ pub fn run() {
         .setup(move |app| {
             eprintln!("[openwiki] App setup started");
 
+            // --- Resolve bundled OCR helper binary ---
+            // The Swift OCR helper is pre-compiled at build time and shipped
+            // as a Tauri resource, so end users don't need Xcode Command Line Tools.
+            if let Ok(resource_dir) = app.path().resource_dir() {
+                let ocr_bin = resource_dir.join("openwiki_ocr_bin");
+                log::info!("[OCR] Registered bundled helper at {}", ocr_bin.display());
+                crate::capture::ocr::init_ocr_binary_path(ocr_bin);
+            } else {
+                log::warn!("[OCR] Could not resolve resource_dir at startup");
+            }
+
             // --- Apply macOS vibrancy + auto-hide on blur ---
             if let Some(spotlight_win) = app.get_webview_window("spotlight") {
                 use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};

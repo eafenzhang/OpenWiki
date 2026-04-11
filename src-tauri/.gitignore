@@ -2,3 +2,6 @@
 # will have compiled files and executables
 /target/
 /gen/schemas
+
+# OCR helper binary — pre-compiled from resources/openwiki_ocr.swift at build time
+/resources/openwiki_ocr_bin
