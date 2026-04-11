@@ -453,7 +453,7 @@ pub fn validate_analysis(json_str: &str, item_count: usize) -> Result<BriefingAn
     let cleaned = extract_json(json_str);
 
     let mut analysis: BriefingAnalysis =
-        serde_json::from_str(&cleaned).map_err(|e| format!("JSON 解析失败: {}", e))?;
+        serde_json::from_str(&cleaned).map_err(|e| format!("JSON parse failed: {}", e))?;
 
     analysis.topics.truncate(3);
 
@@ -469,7 +469,7 @@ pub fn validate_radar_report(json_str: &str) -> Result<RadarReport, String> {
     let cleaned = extract_json(json_str);
 
     let report: RadarReport =
-        serde_json::from_str(&cleaned).map_err(|e| format!("RadarReport JSON 解析失败: {}", e))?;
+        serde_json::from_str(&cleaned).map_err(|e| format!("RadarReport JSON parse failed: {}", e))?;
 
     let required_lists = [
         ("at_a_glance", report.at_a_glance.len()),
@@ -484,16 +484,16 @@ pub fn validate_radar_report(json_str: &str) -> Result<RadarReport, String> {
 
     for (name, len) in required_lists {
         if len == 0 {
-            return Err(format!("{} 不能为空", name));
+            return Err(format!("{} cannot be empty", name));
         }
     }
 
     if report.verdict.text.trim().is_empty() {
-        return Err("verdict.text 不能为空".to_string());
+        return Err("verdict.text cannot be empty".to_string());
     }
 
     if report.footer.total_days == 0 {
-        return Err("footer.total_days 必须大于 0".to_string());
+        return Err("footer.total_days must be greater than 0".to_string());
     }
 
     if report
@@ -501,7 +501,7 @@ pub fn validate_radar_report(json_str: &str) -> Result<RadarReport, String> {
         .iter()
         .any(|action| action.action_ref.trim().is_empty())
     {
-        return Err("actions.ref 不能为空".to_string());
+        return Err("actions.ref cannot be empty".to_string());
     }
 
     Ok(report)
@@ -544,7 +544,7 @@ impl AnalysisProvider {
             "openrouter" => AnalysisProvider::OpenRouter,
             "dashscope" => AnalysisProvider::DashScope,
             "minimax" => AnalysisProvider::MiniMax,
-            "google" => AnalysisProvider::OpenAi, // Google 仅走 OAuth，不走 API Key；此处仅防回退
+            "google" => AnalysisProvider::OpenAi, // Google only uses OAuth, not API keys; this is a fallback guard
             _ => AnalysisProvider::Anthropic,
         }
     }
@@ -621,7 +621,7 @@ pub async fn call_analysis_api(
     let http_client = Client::builder()
         .timeout(Duration::from_secs(120))
         .build()
-        .map_err(|e| format!("HTTP client 创建失败: {}", e))?;
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     match provider {
         AnalysisProvider::Anthropic => {
@@ -643,20 +643,20 @@ pub async fn call_analysis_api(
                 .json(&body)
                 .send()
                 .await
-                .map_err(|e| format!("Anthropic API 请求失败: {}", e))?;
+                .map_err(|e| format!("Anthropic API request failed: {}", e))?;
 
             let status = resp.status();
             let text = resp
                 .text()
                 .await
-                .map_err(|e| format!("读取 Anthropic 响应失败: {}", e))?;
+                .map_err(|e| format!("Failed to read Anthropic response: {}", e))?;
 
             if !status.is_success() {
-                return Err(format!("Anthropic API 错误 ({}): {}", status, text));
+                return Err(format!("Anthropic API error ({}): {}", status, text));
             }
 
             let parsed: AnthropicResponse = serde_json::from_str(&text)
-                .map_err(|e| format!("解析 Anthropic 响应失败: {}", e))?;
+                .map_err(|e| format!("Failed to parse Anthropic response: {}", e))?;
 
             Ok(parsed
                 .content
@@ -723,20 +723,20 @@ pub async fn call_analysis_api(
                 .json(&body)
                 .send()
                 .await
-                .map_err(|e| format!("API 请求失败: {}", e))?;
+                .map_err(|e| format!("API request failed: {}", e))?;
 
             let status = resp.status();
             let text = resp
                 .text()
                 .await
-                .map_err(|e| format!("读取 API 响应失败: {}", e))?;
+                .map_err(|e| format!("Failed to read API response: {}", e))?;
 
             if !status.is_success() {
-                return Err(format!("API 错误 ({}): {}", status, text));
+                return Err(format!("API error ({}): {}", status, text));
             }
 
             let parsed: OpenAiResponse =
-                serde_json::from_str(&text).map_err(|e| format!("解析 API 响应失败: {}", e))?;
+                serde_json::from_str(&text).map_err(|e| format!("Failed to parse API response: {}", e))?;
 
             Ok(parsed
                 .choices
@@ -760,7 +760,7 @@ pub async fn call_dashscope_streaming(
     let http_client = Client::builder()
         .timeout(Duration::from_secs(300))
         .build()
-        .map_err(|e| format!("HTTP client 创建失败: {}", e))?;
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
 
@@ -786,12 +786,12 @@ pub async fn call_dashscope_streaming(
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("DashScope SSE 请求失败: {}", e))?;
+        .map_err(|e| format!("DashScope SSE request failed: {}", e))?;
 
     let status = resp.status();
     if !status.is_success() {
         let text = resp.text().await.unwrap_or_default();
-        return Err(format!("DashScope API 错误 ({}): {}", status, text));
+        return Err(format!("DashScope API error ({}): {}", status, text));
     }
 
     // Parse SSE stream manually using chunk() (no stream feature needed)
@@ -803,7 +803,7 @@ pub async fn call_dashscope_streaming(
     while let Some(chunk) = resp
         .chunk()
         .await
-        .map_err(|e| format!("SSE 读取失败: {}", e))?
+        .map_err(|e| format!("Failed to read SSE stream: {}", e))?
     {
         buffer.push_str(&String::from_utf8_lossy(&chunk));
 
@@ -848,7 +848,7 @@ pub async fn call_dashscope_streaming(
     }
 
     if content_acc.is_empty() {
-        Err("DashScope SSE 流结束但没有收到内容".to_string())
+        Err("DashScope SSE stream ended but no content received".to_string())
     } else {
         Ok(content_acc)
     }
@@ -891,7 +891,7 @@ pub async fn try_codex_call(
 
     // Auto fallback for deep tasks: gpt-5.4 → gpt-5.3-codex
     if saved_model == "auto" && is_deep && result.is_err() {
-        log::warn!("Auto: {} 失败，回退到 gpt-5.3-codex", model);
+        log::warn!("Auto: {} failed, falling back to gpt-5.3-codex", model);
         return Some(crate::ai::codex_api::call_codex_api(
             &access_token, &account_id, "gpt-5.3-codex", system_prompt, user_message, temperature,
         ).await);
@@ -926,7 +926,7 @@ pub async fn try_gemini_call(
 
     // Auto fallback for deep tasks: claude-opus-4-6-thinking → gemini-3.1-pro-high
     if saved_model == "auto" && is_deep && result.is_err() {
-        log::warn!("Auto: {} 失败，回退到 gemini-3.1-pro-high", model);
+        log::warn!("Auto: {} failed, falling back to gemini-3.1-pro-high", model);
         return Some(crate::ai::gemini_api::call_gemini_api(
             &access_token, &project_id, "gemini-3.1-pro-high", system_prompt, user_message, temperature,
         ).await);
@@ -953,10 +953,10 @@ fn process_dashscope_sse_event(
     }
 
     let parsed: serde_json::Value = serde_json::from_str(trimmed_payload)
-        .map_err(|e| format!("DashScope SSE JSON 解析失败: {}", e))?;
+        .map_err(|e| format!("DashScope SSE JSON parse failed: {}", e))?;
 
     if let Some(error) = parsed.get("error") {
-        return Err(format!("DashScope SSE 错误: {}", error));
+        return Err(format!("DashScope SSE error: {}", error));
     }
 
     if let Some(delta) = parsed
@@ -1056,7 +1056,7 @@ mod tests {
     fn test_validate_analysis_invalid_json() {
         let result = validate_analysis("not json at all", 5);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("JSON 解析失败"));
+        assert!(result.unwrap_err().contains("JSON parse failed"));
     }
 
     #[test]
