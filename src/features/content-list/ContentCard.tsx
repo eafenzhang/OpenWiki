@@ -134,6 +134,17 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
   const hasSourceUrl = isUrlContent && !!content.source_url;
   // Check if URL fetch failed (raw_text starts with [读取失败])
   const isFailedUrl = hasSourceUrl && content.raw_text?.startsWith("[读取失败]");
+  // Extract the actual error reason from the failure payload. Backend writes
+  // raw_text as: "[读取失败] {error}\n\n原始链接: {url}" — we peel off the
+  // prefix and stop at the double newline to recover {error}. Showing this
+  // to the user lets them distinguish "yt-dlp not found" from "429 rate
+  // limited" from "needs sign-in" without digging into logs.
+  const failureReason = isFailedUrl
+    ? content.raw_text
+        ?.slice("[读取失败] ".length)
+        .split("\n\n")[0]
+        .trim()
+    : null;
   // raw_text 不等于 source_url 就说明已完成读取（可能是正文、标题、或视频号标记）
   const isFetchedUrl = hasSourceUrl && !isFailedUrl && content.raw_text &&
     content.raw_text.trim() !== content.source_url?.trim();
@@ -315,6 +326,11 @@ export const ContentCard = forwardRef<HTMLDivElement, ContentCardProps>(
                   {retrying ? t("card.retrying") : t("card.retry")}
                 </button>
               </div>
+              {failureReason && (
+                <p className="text-xs text-red-500/80 dark:text-red-400/80 mb-1 leading-relaxed">
+                  {failureReason}
+                </p>
+              )}
               <p className="text-sm text-orange-500 dark:text-orange-400 truncate">
                 {content.source_url}
               </p>
