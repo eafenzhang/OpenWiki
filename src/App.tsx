@@ -350,13 +350,32 @@ function App() {
       {/* Automation permission denial banner + grant/dismiss toasts */}
       <AutomationNotices />
 
-      {/* Tab content — relative z-index above orbs */}
+      {/* Tab content — relative z-index above orbs.
+          All tabs stay mounted (toggled via CSS `display`) so their state
+          — open chat sessions, scroll positions, form input, filter
+          selections, etc. — persists across tab switches. Originally
+          conditional-rendered, which wiped e.g. the WikiAskSidebar chat
+          every time the user glanced at the Content tab. Scanned for
+          persistent intervals / polling / global keyboard handlers
+          before the switch; none exist on these tabs, so the cost of
+          keeping all five mounted is just React reconciliation overhead
+          (negligible at ~150 wiki pages). */}
       <main className="relative z-[1]">
-        {activeTab === "content" && <ContentList />}
-        {activeTab === "wiki" && <WikiView />}
-        {activeTab === "digest" && <RadarView />}
-        {activeTab === "datahub" && <DataHubView />}
-        {activeTab === "settings" && <SettingsView />}
+        <div style={{ display: activeTab === "content" ? "block" : "none" }}>
+          <ContentList />
+        </div>
+        <div style={{ display: activeTab === "wiki" ? "block" : "none" }}>
+          <WikiView />
+        </div>
+        <div style={{ display: activeTab === "digest" ? "block" : "none" }}>
+          <RadarView />
+        </div>
+        <div style={{ display: activeTab === "datahub" ? "block" : "none" }}>
+          <DataHubView />
+        </div>
+        <div style={{ display: activeTab === "settings" ? "block" : "none" }}>
+          <SettingsView />
+        </div>
       </main>
 
       {/* First-launch Automation permission modal — fullscreen overlay */}
