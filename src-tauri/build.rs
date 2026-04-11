@@ -10,7 +10,25 @@ fn main() {
 
         println!("cargo:rerun-if-changed={}", swift_src.display());
 
-        if swift_src.exists() {
+        if !swift_src.exists() {
+            panic!("OCR Swift source not found at {}", swift_src.display());
+        }
+
+        // Idempotency check: only invoke swiftc if the binary is missing or
+        // older than the source. Rewriting the binary on every build caused
+        // a watcher loop in `tauri dev`: write bin → watcher sees change →
+        // restart cargo → build.rs runs → write bin → ... (infinite loop).
+        let needs_rebuild = match (swift_src.metadata(), swift_bin.metadata()) {
+            (Ok(src_meta), Ok(bin_meta)) => {
+                match (src_meta.modified(), bin_meta.modified()) {
+                    (Ok(src_time), Ok(bin_time)) => src_time > bin_time,
+                    _ => true,
+                }
+            }
+            _ => true,
+        };
+
+        if needs_rebuild {
             let status = std::process::Command::new("/usr/bin/swiftc")
                 .args([
                     "-O",
@@ -31,8 +49,6 @@ fn main() {
                     panic!("Failed to invoke swiftc for OCR helper: {}. Is Xcode Command Line Tools installed on the build machine?", e);
                 }
             }
-        } else {
-            panic!("OCR Swift source not found at {}", swift_src.display());
         }
     }
 

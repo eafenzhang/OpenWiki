@@ -35,5 +35,9 @@ dist-ssr
 # Claude Code local settings (contains user-specific paths)
 .claude/settings.local.json
 
+# Local cargo config (contains absolute paths — e.g. target-dir override
+# to keep build artifacts outside iCloud-synced Documents)
+src-tauri/.cargo/
+
 # Internal planning docs (not for public repo)
 docs/superpowers/
