@@ -7,6 +7,7 @@ import { SettingsView } from "./features/settings/SettingsView";
 import { DataHubView } from "./features/data-hub/DataHubView";
 import { RadarView } from "./features/digest/RadarView";
 import { WikiView } from "./features/wiki/WikiView";
+import { UpdateBanner } from "./features/update/UpdateBanner";
 import { useSettingsStore } from "./stores/settingsStore";
 import { useContentStore } from "./stores/contentStore";
 import { searchContent } from "./services/dataHubService";
@@ -340,6 +341,9 @@ function App() {
           </div>
         </div>
       </header>
+
+      {/* Update available — shown when backend emits `update-available` on startup */}
+      <UpdateBanner />
 
       {/* Tab content — relative z-index above orbs */}
       <main className="relative z-[1]">

@@ -5,6 +5,7 @@ mod export;
 pub mod locale;
 mod scheduler;
 mod storage;
+mod update;
 
 use capture::detector::CaptureDetector;
 use commands::capture::AppState;
@@ -125,6 +126,18 @@ pub fn run() {
             detector.start(app.handle().clone());
             eprintln!("[openwiki] Capture detector started!");
 
+            // --- Background update check (GitHub Releases polling) ---
+            // Runs 3s after startup, emits `update-available` if a newer version
+            // is published. Every failure mode is swallowed to log::warn — never
+            // surfaces to the user.
+            {
+                let state: tauri::State<'_, AppState> = app.state();
+                crate::update::spawn_background_check(
+                    app.handle().clone(),
+                    state.db.clone(),
+                );
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -197,6 +210,10 @@ pub fn run() {
             commands::wiki::wiki_lint_recompile,
             commands::wiki::get_page_sources,
             commands::wiki::get_content_wiki_pages,
+            update::check_for_update_manual,
+            update::dismiss_update_version,
+            update::set_update_check_enabled,
+            update::get_update_settings,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

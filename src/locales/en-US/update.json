@@ -1,0 +1,22 @@
+{
+  "banner": {
+    "title": "OpenWiki {{version}} is available",
+    "subtitle": "Current version {{current}}",
+    "view": "View update",
+    "later": "Later",
+    "close": "Close"
+  },
+  "settings": {
+    "sectionTitle": "App updates",
+    "sectionDescription": "Notifies you when a new version is published on GitHub Releases",
+    "currentVersion": "Current version",
+    "latestVersion": "Latest version",
+    "checking": "Checking…",
+    "upToDate": "You're on the latest version ✓",
+    "autoCheckLabel": "Check for updates automatically on launch",
+    "autoCheckHint": "Silently checks GitHub for a new version each time the app starts",
+    "checkNow": "Check for updates now",
+    "viewReleases": "View release notes ↗",
+    "checkFailed": "Check failed: {{error}}"
+  }
+}

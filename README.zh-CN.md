@@ -124,6 +124,10 @@ npm run tauri build
 - [Andrej Karpathy](https://github.com/karpathy) — 他的 [LLM Wiki 构想](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) 启发了知识库的设计
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) — YouTube 字幕提取
 
+## 作者
+
+**Ray** — [@BitcoinRui](https://x.com/BitcoinRui)
+
 ## License
 
 [MIT](LICENSE)

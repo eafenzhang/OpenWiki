@@ -1,0 +1,22 @@
+{
+  "banner": {
+    "title": "OpenWiki {{version}} 已发布",
+    "subtitle": "当前版本 {{current}}",
+    "view": "查看更新",
+    "later": "稍后",
+    "close": "关闭"
+  },
+  "settings": {
+    "sectionTitle": "软件更新",
+    "sectionDescription": "通过 GitHub Releases 获取新版本通知",
+    "currentVersion": "当前版本",
+    "latestVersion": "最新版本",
+    "checking": "检查中…",
+    "upToDate": "已是最新版本 ✓",
+    "autoCheckLabel": "启动时自动检查更新",
+    "autoCheckHint": "每次启动应用时静默检查 GitHub 是否有新版本",
+    "checkNow": "立即检查更新",
+    "viewReleases": "查看发布记录 ↗",
+    "checkFailed": "检查失败：{{error}}"
+  }
+}

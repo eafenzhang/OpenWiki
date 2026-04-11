@@ -10,6 +10,7 @@ import zhWiki from "./locales/zh-CN/wiki.json";
 import zhDigest from "./locales/zh-CN/digest.json";
 import zhReport from "./locales/zh-CN/report.json";
 import zhDataHub from "./locales/zh-CN/dataHub.json";
+import zhUpdate from "./locales/zh-CN/update.json";
 
 // en-US
 import enCommon from "./locales/en-US/common.json";
@@ -19,6 +20,7 @@ import enWiki from "./locales/en-US/wiki.json";
 import enDigest from "./locales/en-US/digest.json";
 import enReport from "./locales/en-US/report.json";
 import enDataHub from "./locales/en-US/dataHub.json";
+import enUpdate from "./locales/en-US/update.json";
 
 const resources = {
   "zh-CN": {
@@ -29,6 +31,7 @@ const resources = {
     digest: zhDigest,
     report: zhReport,
     dataHub: zhDataHub,
+    update: zhUpdate,
   },
   "en-US": {
     common: enCommon,
@@ -38,6 +41,7 @@ const resources = {
     digest: enDigest,
     report: enReport,
     dataHub: enDataHub,
+    update: enUpdate,
   },
 };
 
@@ -48,7 +52,7 @@ i18n
     resources,
     fallbackLng: "zh-CN",
     defaultNS: "common",
-    ns: ["common", "settings", "content", "wiki", "digest", "report", "dataHub"],
+    ns: ["common", "settings", "content", "wiki", "digest", "report", "dataHub", "update"],
     interpolation: {
       escapeValue: false,
     },
