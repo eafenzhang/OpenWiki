@@ -763,13 +763,18 @@ export default function BubbleView() {
     : "from-orange-500/20 to-amber-500/20";
   const iconEmoji = isImage ? "📷" : isUrl ? "🔗" : "📋";
 
-  // Bar mode: click executes default action
-  const barClick = confirmed ? undefined : (defaultAction === "save" ? confirm : dismiss);
+  // In bar mode, only the explicit save button should trigger a save/dismiss
+  // when the default action is "dismiss". Clicking the whole bar looked like a
+  // primary confirmation target and caused accidental ignores.
+  const barBodyClickable = !confirmed && defaultAction === "save";
+  const barClick = barBodyClickable ? confirm : undefined;
 
   return (
     <div className="w-[340px] h-[72px] select-none" style={{ background: "transparent" }}>
       <div
-        className="relative w-full h-full rounded-2xl overflow-hidden cursor-pointer group"
+        className={`relative w-full h-full rounded-2xl overflow-hidden group ${
+          barBodyClickable ? "cursor-pointer" : "cursor-default"
+        }`}
         onClick={barClick}
         style={{
           background: confirmed ? "#16A34A" : "rgb(15, 15, 30)",
