@@ -56,6 +56,8 @@ export const MODELS_BY_PROVIDER: Record<AIProvider, AIModelOption[]> = {
     { id: "anthropic/claude-sonnet-4.6", label: "Claude Sonnet 4.6", group: "Anthropic" },
     { id: "anthropic/claude-haiku-4.5", label: "Claude Haiku 4.5", group: "Anthropic" },
     // ── OpenAI ──
+    { id: "openai/gpt-5.5", label: "GPT-5.5", group: "OpenAI" },
+    { id: "openai/gpt-5.5-pro", label: "GPT-5.5 Pro", group: "OpenAI" },
     { id: "openai/gpt-5.4", label: "GPT-5.4", group: "OpenAI" },
     { id: "openai/gpt-5.2", label: "GPT-5.2", group: "OpenAI" },
     { id: "openai/gpt-5.1", label: "GPT-5.1", group: "OpenAI" },
@@ -64,6 +66,8 @@ export const MODELS_BY_PROVIDER: Record<AIProvider, AIModelOption[]> = {
     { id: "google/gemini-3-pro-preview", label: "Gemini 3 Pro", group: "Google" },
     { id: "google/gemini-3-flash-preview", label: "Gemini 3 Flash", group: "Google" },
     // ── DeepSeek ──
+    { id: "deepseek/deepseek-v4-pro", label: "DeepSeek V4 Pro", group: "DeepSeek" },
+    { id: "deepseek/deepseek-v4-flash", label: "DeepSeek V4 Flash", group: "DeepSeek" },
     { id: "deepseek/deepseek-v3.2", label: "DeepSeek V3.2", group: "DeepSeek" },
     { id: "deepseek/deepseek-v3.2-speciale", label: "DeepSeek V3.2 Speciale", group: "DeepSeek" },
     { id: "deepseek/deepseek-r1", label: "DeepSeek R1", group: "DeepSeek" },
