@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getSettings, updateSetting, checkXReaderStatus, type XReaderStatus } from "../services/settingsService";
 import { setAppLanguage, getSystemLanguage, initLanguageFromSettings } from "../i18n";
 
-export type AIProvider = "anthropic" | "openai" | "openrouter" | "dashscope" | "google" | "minimax" | "ollama" | "lmstudio" | "custom";
+export type AIProvider = "anthropic" | "openai" | "openrouter" | "dashscope" | "google" | "minimax" | "deepseek" | "ollama" | "lmstudio" | "custom";
 
 export interface AIModelOption {
   id: string;
@@ -20,8 +20,11 @@ export const MODELS_BY_PROVIDER: Record<AIProvider, AIModelOption[]> = {
   ],
   openai: [
     { id: "auto", label: "Auto" },
+    { id: "gpt-5.5", label: "GPT-5.5" },
+    { id: "gpt-5.5-pro", label: "GPT-5.5 Pro" },
     { id: "gpt-5.4", label: "GPT-5.4" },
     { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
+    { id: "gpt-5.4-nano", label: "GPT-5.4 Nano" },
     { id: "gpt-5.3-codex", label: "GPT-5.3 Codex" },
     { id: "gpt-5.2", label: "GPT-5.2" },
     { id: "gpt-5.2-codex", label: "GPT-5.2 Codex" },
@@ -100,6 +103,10 @@ export const MODELS_BY_PROVIDER: Record<AIProvider, AIModelOption[]> = {
     { id: "MiniMax-M2.5", label: "MiniMax M2.5" },
     { id: "MiniMax-M2.1", label: "MiniMax M2.1" },
   ],
+  deepseek: [
+    { id: "deepseek-v4-flash", label: "DeepSeek V4 Flash（便宜快）" },
+    { id: "deepseek-v4-pro", label: "DeepSeek V4 Pro（旗舰）" },
+  ],
   ollama: [
     { id: "llama3.1", label: "Llama 3.1" },
     { id: "qwen2.5", label: "Qwen 2.5" },
@@ -117,6 +124,7 @@ export const PROVIDER_LABELS: Record<AIProvider, string> = {
   dashscope: "DashScope",
   google: "Google",
   minimax: "MiniMax",
+  deepseek: "DeepSeek",
   ollama: "Ollama（本地）",
   lmstudio: "LM Studio（本地）",
   custom: "自定义",
@@ -128,7 +136,7 @@ export const DEFAULT_BASE_URLS: Partial<Record<AIProvider, string>> = {
   custom: "",
 };
 
-const VALID_PROVIDERS: AIProvider[] = ["anthropic", "openai", "openrouter", "dashscope", "google", "minimax", "ollama", "lmstudio", "custom"];
+const VALID_PROVIDERS: AIProvider[] = ["anthropic", "openai", "openrouter", "dashscope", "google", "minimax", "deepseek", "ollama", "lmstudio", "custom"];
 
 export type CaptureMode = "auto" | "confirm";
 export type BubbleStyle = "circle" | "bar";

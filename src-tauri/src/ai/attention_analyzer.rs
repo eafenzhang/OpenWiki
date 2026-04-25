@@ -544,6 +544,7 @@ pub enum AnalysisProvider {
     OpenRouter,
     DashScope,
     MiniMax,
+    DeepSeek,
     Custom { base_url: String },
     Ollama { base_url: String },
     LmStudio { base_url: String },
@@ -560,6 +561,7 @@ impl AnalysisProvider {
             "openrouter" => AnalysisProvider::OpenRouter,
             "dashscope" => AnalysisProvider::DashScope,
             "minimax" => AnalysisProvider::MiniMax,
+            "deepseek" => AnalysisProvider::DeepSeek,
             "google" => AnalysisProvider::OpenAi, // Google only uses OAuth, not API keys; this is a fallback guard
             "custom" => AnalysisProvider::Custom { base_url: base_url.to_string() },
             "ollama" => AnalysisProvider::Ollama {
@@ -812,7 +814,7 @@ pub async fn call_analysis_api(
                 .map(|c| c.text.clone())
                 .unwrap_or_default())
         }
-        AnalysisProvider::OpenAi | AnalysisProvider::OpenRouter | AnalysisProvider::DashScope | AnalysisProvider::MiniMax | AnalysisProvider::Custom { .. } | AnalysisProvider::LmStudio { .. } => {
+        AnalysisProvider::OpenAi | AnalysisProvider::OpenRouter | AnalysisProvider::DashScope | AnalysisProvider::MiniMax | AnalysisProvider::DeepSeek | AnalysisProvider::Custom { .. } | AnalysisProvider::LmStudio { .. } => {
             let url_owned: String;
             let url: &str = match provider {
                 AnalysisProvider::OpenRouter => "https://openrouter.ai/api/v1/chat/completions",
@@ -820,6 +822,7 @@ pub async fn call_analysis_api(
                     "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
                 }
                 AnalysisProvider::MiniMax => "https://api.minimax.io/v1/chat/completions",
+                AnalysisProvider::DeepSeek => "https://api.deepseek.com/v1/chat/completions",
                 AnalysisProvider::Custom { base_url } | AnalysisProvider::LmStudio { base_url } => {
                     if base_url.is_empty() {
                         return Err("Custom provider requires a base URL".to_string());
