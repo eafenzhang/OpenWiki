@@ -12,7 +12,6 @@ jobs:
     permissions:
       contents: write
     strategy:
-      max-parallel: 1
       matrix:
         include:
           - label: Apple Silicon
