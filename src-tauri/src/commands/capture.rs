@@ -240,6 +240,7 @@ fn markitdown_command_candidates(app: &tauri::AppHandle) -> Vec<(String, Vec<Str
     if let Ok(resource_dir) = app.path().resource_dir() {
         for path in [
             resource_dir.join("markitdown/bin/openwiki-markitdown"),
+            resource_dir.join("markitdown/openwiki-markitdown"),
             resource_dir.join("markitdown/venv/bin/markitdown"),
             resource_dir.join("resources/markitdown/bin/openwiki-markitdown"),
             resource_dir.join("resources/markitdown/venv/bin/markitdown"),

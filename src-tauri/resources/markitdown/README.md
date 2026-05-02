@@ -8,4 +8,6 @@ The script builds `resources/markitdown/bin/openwiki-markitdown`, a bundled
 converter executable with only the MarkItDown extras needed for PDF, DOCX, and
 PPTX imports.
 
-The generated `bin/` directory is intentionally ignored by Git.
+Tauri may place that executable in the final app bundle as either
+`markitdown/openwiki-markitdown` or `markitdown/bin/openwiki-markitdown`;
+the app checks both locations.

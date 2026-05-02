@@ -71,6 +71,7 @@ jobs:
           ENT=src-tauri/entitlements.plist
           for binary in \
             src-tauri/resources/openwiki_ocr_bin \
+            src-tauri/resources/markitdown/openwiki-markitdown \
             src-tauri/resources/markitdown/bin/openwiki-markitdown; do
             if [ -f "$binary" ]; then
               echo "Signing $binary"
@@ -83,6 +84,12 @@ jobs:
               echo "Helper binary not found at $binary — skipping"
             fi
           done
+
+          if [ ! -x src-tauri/resources/markitdown/openwiki-markitdown ] && \
+             [ ! -x src-tauri/resources/markitdown/bin/openwiki-markitdown ]; then
+            echo "MarkItDown helper is missing from both expected bundle paths"
+            exit 1
+          fi
 
       # Read per-version release notes from release-notes/<tag>.md.
       # Claude maintains this file (see release-notes/README.md); if it's
